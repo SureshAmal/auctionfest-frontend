@@ -147,6 +147,37 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
     const minBid = currentPlot.current_bid
         ? currentPlot.current_bid + 100
         : (currentPlot.total_plot_price || 1000);
+    /** Convert number to Indian words (Crore, Lakh, Thousand). */
+    const numberToIndianWords = (num: number): string => {
+        if (!num || num <= 0) return "";
+        const crore = Math.floor(num / 10000000);
+        const lakh = Math.floor((num % 10000000) / 100000);
+        const thousand = Math.floor((num % 100000) / 1000);
+        const remainder = num % 1000;
+
+        const parts: string[] = [];
+        if (crore > 0) parts.push(`${crore} Crore`);
+        if (lakh > 0) parts.push(`${lakh} Lakh`);
+        if (thousand > 0) parts.push(`${thousand} Thousand`);
+        if (remainder > 0) parts.push(`${remainder}`);
+        return parts.join(" ") || "0";
+    };
+
+    /** Format number with Indian commas for display. */
+    const formatIndianNumber = (val: string): string => {
+        const num = parseInt(val.replace(/,/g, ""));
+        if (isNaN(num)) return "";
+        return num.toLocaleString("en-IN");
+    };
+
+    /** Handle bid input change — strip commas for storage, show formatted. */
+    const handleBidInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const raw = e.target.value.replace(/,/g, "").replace(/[^0-9]/g, "");
+        setBidAmount(raw);
+    };
+
+    const displayBidAmount = bidAmount ? formatIndianNumber(bidAmount) : "";
+    const bidAmountNum = parseInt(bidAmount) || 0;
 
     return (
         <NeoCard className="bg-[var(--color-bg)]">
@@ -165,7 +196,7 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
                     <p className="text-xs font-bold uppercase mb-1">Current Highest Bid</p>
                     <div className="flex items-baseline justify-between">
                         <span className="text-3xl font-black">
-                            ₹ {currentPlot.current_bid ? currentPlot.current_bid.toLocaleString() : "0"}
+                            ₹ {currentPlot.current_bid ? Number(currentPlot.current_bid).toLocaleString("en-IN") : "0"}
                         </span>
                         {currentPlot.winner_team_id && (
                             <span className="text-xs font-bold uppercase bg-black text-white px-2 py-0.5">
@@ -198,11 +229,12 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
                     <div className="relative flex-1">
                         <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                         <input
-                            type="number"
-                            value={bidAmount}
-                            onChange={(e) => setBidAmount(e.target.value)}
+                            type="text"
+                            inputMode="numeric"
+                            value={displayBidAmount}
+                            onChange={handleBidInputChange}
                             className="w-full neo-input pl-12 text-2xl font-black text-center"
-                            placeholder={`${minBid}`}
+                            placeholder={`${minBid.toLocaleString("en-IN")}`}
                             min={minBid}
                         />
                     </div>
@@ -219,6 +251,13 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
                         +
                     </NeoButton>
                 </div>
+
+                {/* Price in words hint */}
+                {bidAmountNum > 0 && (
+                    <p className="text-xs font-bold text-gray-500 text-center -mt-2">
+                        ₹ {numberToIndianWords(bidAmountNum)}
+                    </p>
+                )}
 
                 {/* Error / Success Messages */}
                 <AnimatePresence>

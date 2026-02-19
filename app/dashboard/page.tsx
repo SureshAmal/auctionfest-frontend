@@ -192,8 +192,9 @@ export default function Dashboard() {
                             <p className="font-mono font-black text-xl">₹ {(Number(userTeam.budget) - Number(userTeam.spent || 0)).toLocaleString("en-IN")}</p>
                         </div>
 
-                        <div className="h-12 w-12 border-4 border-black bg-[var(--color-secondary)] text-white flex items-center justify-center font-black text-xl shadow-[4px_4px_0_black]">
-                            {userTeam.name.charAt(0)}
+                        <div className="flex items-center gap-2 neo-border px-3 py-2 bg-[var(--color-secondary)] text-white shadow-[4px_4px_0_black]">
+                            <span className="font-black text-xl">{userTeam.name.charAt(0)}</span>
+                            <span className="font-black text-sm uppercase">{userTeam.name}</span>
                         </div>
 
                         <button

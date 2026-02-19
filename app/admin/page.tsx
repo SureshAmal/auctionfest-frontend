@@ -126,6 +126,13 @@ export default function AdminPage() {
     const isCompleted = status === "completed";
     const isNotStarted = status === "not_started";
 
+    /** Look up team name by ID. */
+    const getTeamName = (teamId: string) => {
+        if (!teamId) return "-";
+        const team = teams.find(t => t.id === teamId);
+        return team ? team.name : "-";
+    };
+
     /** Send an admin action to the server. */
     const sendAction = async (action: string) => {
         try {
@@ -151,13 +158,17 @@ export default function AdminPage() {
         }
     };
 
-    /** Apply increment/decrement adjustment to a plot. */
+    /** Apply percentage-based adjustment to one or more plots. */
     const handleAdjustPlot = async () => {
-        const plotNum = parseInt(adjustPlotNumber);
-        const amount = parseFloat(adjustAmount);
+        // Parse comma-separated plot numbers
+        const plotNums = adjustPlotNumber
+            .split(",")
+            .map(s => parseInt(s.trim()))
+            .filter(n => !isNaN(n));
+        const percent = parseFloat(adjustAmount);
 
-        if (isNaN(plotNum) || isNaN(amount)) {
-            setAdjustMessage("Please enter valid plot number and amount");
+        if (plotNums.length === 0 || isNaN(percent)) {
+            setAdjustMessage("Enter valid plot number(s) and percentage");
             return;
         }
 
@@ -165,12 +176,14 @@ export default function AdminPage() {
             const res = await fetch("/api/admin/adjust-plot", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ plot_number: plotNum, adjustment: amount }),
+                body: JSON.stringify({ plot_numbers: plotNums, adjustment_percent: percent }),
             });
             if (res.ok) {
                 const data = await res.json();
-                setAdjustMessage(`Plot ${plotNum} adjusted by ₹${amount.toLocaleString()}. Total: ₹${data.total_adjustment.toLocaleString()}`);
+                const count = data.results?.length || 0;
+                setAdjustMessage(`${percent > 0 ? "+" : ""}${percent}% applied to ${count} plot(s)`);
                 setAdjustAmount("");
+                setAdjustPlotNumber("");
             } else {
                 const err = await res.json();
                 setAdjustMessage(err.detail || "Adjustment failed");
@@ -194,221 +207,212 @@ export default function AdminPage() {
     };
 
     return (
-        <NeoLayout>
-            <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 border-b-4 border-black pb-4">
-                <div className="flex items-center gap-4">
-                    <ShieldAlert size={48} className="text-[var(--color-primary)]" strokeWidth={3} />
-                    <h1 className="text-4xl font-black uppercase tracking-tighter">
-                        ADMIN PANEL
-                    </h1>
-                </div>
-
-                <div className="flex flex-wrap gap-4 items-center">
-                    <div className="flex items-center gap-2 neo-border px-4 py-2 bg-white">
-                        <Users size={20} className="text-blue-600" />
-                        <span className="font-black text-xl">{connectedCount}</span>
-                        <span className="font-bold uppercase text-sm">Online</span>
+        <NeoLayout containerized={false}>
+            <div className="h-screen flex flex-col overflow-hidden px-3 py-2">
+                <header className="flex flex-col md:flex-row justify-between items-center mb-2 gap-2 border-b-4 border-black pb-2">
+                    <div className="flex items-center gap-4">
+                        <ShieldAlert size={48} className="text-[var(--color-primary)]" strokeWidth={3} />
+                        <h1 className="text-4xl font-black uppercase tracking-tighter">
+                            ADMIN PANEL
+                        </h1>
                     </div>
 
-                    <NeoBadge variant={isRunning ? "success" : isPaused ? "warning" : isCompleted ? "danger" : "neutral"}>
-                        {status.replace("_", " ")}
-                    </NeoBadge>
-
-                    <div className="neo-border px-4 py-2 bg-[var(--color-surface)]">
-                        <span className="font-bold uppercase text-xs block">Plot</span>
-                        <span className="font-black text-2xl">#{auctionState?.current_plot_number || "-"}</span>
-                    </div>
-
-                    <div className="neo-border px-4 py-2 bg-blue-100">
-                        <span className="font-bold uppercase text-xs block">Round</span>
-                        <span className="font-black text-2xl">{currentRound}</span>
-                    </div>
-                </div>
-            </header>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left: Controls + Round + Adjustment */}
-                <div className="space-y-6">
-                    {/* Auction Controls */}
-                    <NeoCard>
-                        <h2 className="text-xl font-black uppercase mb-4">Auction Controls</h2>
-                        <div className="grid grid-cols-1 gap-3">
-                            <NeoButton
-                                variant="success"
-                                onClick={() => sendAction("start")}
-                                disabled={isRunning}
-                                className={isRunning ? "opacity-50 cursor-not-allowed" : ""}
-                            >
-                                <Play size={20} className="mr-2" /> {isNotStarted ? "START" : isCompleted ? "RESTART" : "RESUME"}
-                            </NeoButton>
-
-                            <NeoButton
-                                variant="secondary"
-                                onClick={() => sendAction("next")}
-                                disabled={!isRunning}
-                                className={!isRunning ? "opacity-50 cursor-not-allowed" : ""}
-                            >
-                                <SkipForward size={20} className="mr-2" /> NEXT PLOT
-                            </NeoButton>
-
-                            <NeoButton
-                                variant="base"
-                                onClick={() => sendAction("pause")}
-                                disabled={!isRunning}
-                                className={!isRunning ? "opacity-50 cursor-not-allowed bg-yellow-100" : "bg-yellow-400"}
-                            >
-                                <Pause size={20} className="mr-2" /> PAUSE
-                            </NeoButton>
-
-                            <NeoButton
-                                variant="danger"
-                                onClick={() => {
-                                    if (confirmReset) {
-                                        sendAction("reset");
-                                        setConfirmReset(false);
-                                    } else {
-                                        setConfirmReset(true);
-                                        setTimeout(() => setConfirmReset(false), 3000);
-                                    }
-                                }}
-                            >
-                                <RefreshCw size={20} className={`mr-2 ${confirmReset ? "animate-spin" : ""}`} />
-                                {confirmReset ? "CONFIRM RESET?" : "RESET"}
-                            </NeoButton>
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="flex items-center gap-2 neo-border px-4 py-2 bg-white">
+                            <Users size={20} className="text-blue-600" />
+                            <span className="font-black text-xl">{connectedCount}</span>
+                            <span className="font-bold uppercase text-sm">Online</span>
                         </div>
-                    </NeoCard>
 
-                    {/* Round Selector */}
-                    <NeoCard>
-                        <h2 className="text-xl font-black uppercase mb-4 flex items-center gap-2">
-                            <Settings size={20} /> Round Control
-                        </h2>
-                        <div className="grid grid-cols-4 gap-2">
-                            {[1, 2, 3, 4].map(r => (
-                                <NeoButton
-                                    key={r}
-                                    variant={currentRound === r ? "primary" : "base"}
-                                    onClick={() => handleSetRound(r)}
-                                    className={`text-sm font-black ${currentRound === r ? "" : "bg-gray-100"}`}
-                                >
-                                    R{r}
-                                    <span className="block text-[10px] font-bold">{getRoundLabel(r)}</span>
-                                </NeoButton>
-                            ))}
+                        <NeoBadge variant={isRunning ? "success" : isPaused ? "warning" : isCompleted ? "danger" : "neutral"}>
+                            {status.replace("_", " ")}
+                        </NeoBadge>
+
+                        <div className="neo-border px-4 py-2 bg-[var(--color-surface)]">
+                            <span className="font-bold uppercase text-xs block">Plot</span>
+                            <span className="font-black text-2xl">#{auctionState?.current_plot_number || "-"}</span>
                         </div>
-                    </NeoCard>
 
-                    {/* Plot Adjustment Panel (visible in rounds 2 & 3) */}
-                    {(currentRound === 2 || currentRound === 3) && (
-                        <NeoCard className="bg-yellow-50">
-                            <h2 className="text-xl font-black uppercase mb-4 flex items-center gap-2">
-                                {currentRound === 2 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
-                                Plot Adjustment (Round {currentRound})
+                        <div className="neo-border px-4 py-2 bg-blue-100">
+                            <span className="font-bold uppercase text-xs block">Round</span>
+                            <span className="font-black text-2xl">{currentRound}</span>
+                        </div>
+                    </div>
+                </header>
+
+
+
+                {/* Main Content: Controls + Leaderboard + Connected | Plot Table */}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-1 min-h-0 overflow-hidden">
+                    {/* Left: Controls + Leaderboard + Connected */}
+                    <div className="lg:col-span-1 flex flex-col gap-3 min-h-0 overflow-y-auto">
+
+                        {/* Admin Controls Card */}
+                        <NeoCard className="shrink-0 bg-gray-50">
+                            <h2 className="text-sm font-black uppercase mb-2 flex items-center gap-2">
+                                <Settings size={16} /> Admin Controls
                             </h2>
-                            <div className="space-y-3">
-                                <NeoInput
-                                    label="Plot Number"
-                                    type="number"
-                                    placeholder="e.g. 5"
-                                    value={adjustPlotNumber}
-                                    onChange={(e) => setAdjustPlotNumber(e.target.value)}
-                                />
-                                <NeoInput
-                                    label="Adjustment Amount (+ or -)"
-                                    type="number"
-                                    placeholder="e.g. 5000 or -3000"
-                                    value={adjustAmount}
-                                    onChange={(e) => setAdjustAmount(e.target.value)}
-                                />
+
+                            {/* Auction Actions */}
+                            <div className="grid grid-cols-2 gap-2 mb-3">
                                 <NeoButton
-                                    variant="primary"
-                                    className="w-full"
-                                    onClick={handleAdjustPlot}
+                                    variant="success"
+                                    onClick={() => sendAction("start")}
+                                    disabled={isRunning}
+                                    className={`text-xs py-2 ${isRunning ? "opacity-50" : ""}`}
                                 >
-                                    APPLY ADJUSTMENT
+                                    <Play size={14} className="mr-1" /> {isNotStarted ? "START" : isCompleted ? "RESTART" : "RESUME"}
                                 </NeoButton>
-                                {adjustMessage && (
-                                    <div className="text-sm font-bold p-2 bg-white border-2 border-black">
-                                        {adjustMessage}
+                                <NeoButton
+                                    variant="secondary"
+                                    onClick={() => sendAction("next")}
+                                    disabled={!isRunning}
+                                    className={`text-xs py-2 ${!isRunning ? "opacity-50" : ""}`}
+                                >
+                                    <SkipForward size={14} className="mr-1" /> NEXT
+                                </NeoButton>
+                                <NeoButton
+                                    variant="base"
+                                    onClick={() => sendAction("pause")}
+                                    disabled={!isRunning}
+                                    className={`text-xs py-2 ${!isRunning ? "opacity-50 bg-yellow-100" : "bg-yellow-400"}`}
+                                >
+                                    <Pause size={14} className="mr-1" /> PAUSE
+                                </NeoButton>
+                                <NeoButton
+                                    variant="danger"
+                                    className="text-xs py-2"
+                                    onClick={() => {
+                                        if (confirmReset) {
+                                            sendAction("reset");
+                                            setConfirmReset(false);
+                                        } else {
+                                            setConfirmReset(true);
+                                            setTimeout(() => setConfirmReset(false), 3000);
+                                        }
+                                    }}
+                                >
+                                    <RefreshCw size={14} className={`mr-1 ${confirmReset ? "animate-spin" : ""}`} />
+                                    {confirmReset ? "CONFIRM" : "RESET"}
+                                </NeoButton>
+                            </div>
+
+                            {/* Round Selector */}
+                            <div className="flex gap-1 justify-between items-center neo-border px-1 bg-white mb-3">
+                                {[1, 2, 3, 4].map(r => (
+                                    <button
+                                        key={r}
+                                        onClick={() => handleSetRound(r)}
+                                        className={`flex-1 py-1.5 text-[10px] font-black uppercase border-2 border-transparent transition-all ${currentRound === r ? "bg-[var(--color-primary)] text-white border-black" : "hover:bg-gray-100"}`}
+                                    >
+                                        R{r}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Adjustment Panel */}
+                            {(currentRound === 2 || currentRound === 3) && (
+                                <div className="space-y-2 neo-border p-2 bg-yellow-50">
+                                    <p className="text-[10px] font-black uppercase">Adjust Rounds</p>
+                                    <input
+                                        type="text"
+                                        placeholder="Plots: 1,2,3"
+                                        value={adjustPlotNumber}
+                                        onChange={(e) => setAdjustPlotNumber(e.target.value)}
+                                        className="neo-input text-xs w-full mb-1"
+                                    />
+                                    <div className="flex gap-1">
+                                        <input
+                                            type="number"
+                                            placeholder="% ±"
+                                            value={adjustAmount}
+                                            onChange={(e) => setAdjustAmount(e.target.value)}
+                                            className="neo-input text-xs w-2/3"
+                                        />
+                                        <NeoButton variant="primary" className="text-xs w-1/3" onClick={handleAdjustPlot}>
+                                            GO
+                                        </NeoButton>
                                     </div>
+                                    {adjustMessage && (
+                                        <p className="text-[10px] font-bold text-green-700 leading-tight">{adjustMessage}</p>
+                                    )}
+                                </div>
+                            )}
+                        </NeoCard>
+
+                        {/* Leaderboard */}
+                        <NeoCard className="shrink-0">
+                            <h2 className="text-sm font-black uppercase mb-2 flex items-center gap-2">
+                                <Trophy size={16} className="text-yellow-600" /> Leaderboard
+                            </h2>
+                            <div className="space-y-1.5">
+                                {teams.map((team, i) => (
+                                    <div key={team.id} className="flex justify-between items-center bg-white p-2 border-2 border-black text-xs">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-black w-5">#{i + 1}</span>
+                                            <span className="font-bold uppercase">{team.name}</span>
+                                        </div>
+                                        <div className="text-right font-mono font-bold">
+                                            <div className="text-green-600">★{team.plots_won}</div>
+                                            <div>₹{Number(team.spent || 0).toLocaleString("en-IN")}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </NeoCard>
+
+                        {/* Connected Teams */}
+                        <NeoCard className="shrink-0">
+                            <h2 className="text-sm font-black uppercase mb-2 flex items-center gap-2">
+                                <Users size={16} className="text-blue-600" /> Online ({connectedTeams.length})
+                            </h2>
+                            <div className="space-y-1">
+                                {connectedTeams.length > 0 ? connectedTeams.map((name, i) => (
+                                    <div key={i} className="flex items-center gap-2 bg-gray-100 p-1.5 border border-black font-bold text-xs">
+                                        <span className="w-2 h-2 bg-green-500 border border-black" />
+                                        <span>{name}</span>
+                                    </div>
+                                )) : (
+                                    <p className="text-gray-500 text-xs italic border border-dashed border-gray-300 p-2">No one connected</p>
                                 )}
                             </div>
                         </NeoCard>
-                    )}
+                    </div>
 
-                    {/* Connected Teams */}
-                    <NeoCard>
-                        <h2 className="text-lg font-black uppercase mb-3 flex items-center gap-2">
-                            <Users size={20} className="text-blue-600" /> Connected Teams
-                        </h2>
-                        <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2">
-                            {connectedTeams.length > 0 ? connectedTeams.map((name, i) => (
-                                <div key={i} className="flex items-center gap-2 bg-gray-100 p-2 border-2 border-black font-bold">
-                                    <span className="w-3 h-3 bg-green-500 border border-black" />
-                                    <span>{name}</span>
-                                </div>
-                            )) : (
-                                <p className="text-gray-500 text-sm italic border-2 border-dashed border-gray-300 p-2">No one connected yet...</p>
-                            )}
-                        </div>
-                    </NeoCard>
+                    {/* Right: Plot Status Table - full remaining space */}
+                    <div className="lg:col-span-3 min-h-0 overflow-hidden flex flex-col">
+                        <NeoCard className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                            <h3 className="text-sm font-black uppercase mb-2">Plot Status</h3>
+                            <div className="flex-1 min-h-0 overflow-y-auto">
+                                <NeoTable
+                                    headers={["#", "Type", "Area", "Base", "Adj.", "Status", "Team", "Bid"]}
+                                    data={plots}
+                                    renderRow={(p) => (
+                                        <>
+                                            <td className="px-2 py-1.5 font-bold bg-gray-50 text-sm">{p.number}</td>
+                                            <td className="px-2 py-1.5 text-xs font-bold uppercase">{p.plot_type || "-"}</td>
+                                            <td className="px-2 py-1.5 font-mono text-xs">{p.actual_area?.toLocaleString() || "-"}</td>
+                                            <td className="px-2 py-1.5 font-mono text-xs">₹{p.base_price?.toLocaleString() || "-"}</td>
+                                            <td className={`px-2 py-1.5 font-mono text-xs font-bold ${(p.round_adjustment || 0) > 0 ? "text-green-600" : (p.round_adjustment || 0) < 0 ? "text-red-600" : ""}`}>
+                                                {Number(p.round_adjustment) !== 0 ? `${p.round_adjustment > 0 ? "+" : ""}₹${Number(p.round_adjustment).toLocaleString("en-IN")}` : "-"}
+                                            </td>
+                                            <td className="px-2 py-1.5">
+                                                <NeoBadge variant={
+                                                    p.status === "sold" ? "success" :
+                                                        p.status === "active" ? "info" : "neutral"
+                                                }>
+                                                    {p.status}
+                                                </NeoBadge>
+                                            </td>
+                                            <td className="px-2 py-1.5 text-xs font-bold uppercase">{getTeamName(p.winner_team_id)}</td>
+                                            <td className="px-2 py-1.5 font-mono font-bold text-xs">{p.current_bid ? `₹${Number(p.current_bid).toLocaleString("en-IN")}` : "-"}</td>
+                                        </>
+                                    )}
+                                />
+                            </div>
+                        </NeoCard>
+                    </div>
                 </div>
-
-                {/* Center + Right: Leaderboard & Plot Table */}
-                <div className="lg:col-span-2 flex flex-col gap-8">
-                    {/* Leaderboard */}
-                    <NeoCard>
-                        <h2 className="text-xl font-black uppercase mb-4 flex items-center gap-2">
-                            <Trophy className="text-yellow-600" /> Leaderboard
-                        </h2>
-                        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-                            {teams.map((team, i) => (
-                                <div key={team.id} className="flex justify-between items-center bg-white p-3 border-2 border-black hover:bg-[var(--color-surface)] transition-colors">
-                                    <div className="flex items-center gap-3">
-                                        <span className="font-black text-lg w-6">#{i + 1}</span>
-                                        <span className="font-bold uppercase">{team.name}</span>
-                                    </div>
-                                    <div className="text-right text-xs font-mono font-bold">
-                                        <div className="text-green-600">★ {team.plots_won}</div>
-                                        <div>₹{(team.spent || 0).toLocaleString()}</div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </NeoCard>
-
-                    {/* Plots Status Table */}
-                    <NeoCard>
-                        <h3 className="text-lg font-black uppercase mb-4">Plot Status</h3>
-                        <div className="max-h-96 overflow-y-auto">
-                            <NeoTable
-                                headers={["#", "Type", "Area", "Base", "Adj.", "Status", "Bid"]}
-                                data={plots}
-                                renderRow={(p) => (
-                                    <>
-                                        <td className="px-3 py-2 font-bold bg-gray-50">{p.number}</td>
-                                        <td className="px-3 py-2 text-xs font-bold uppercase">{p.plot_type || "-"}</td>
-                                        <td className="px-3 py-2 font-mono text-xs">{p.actual_area?.toLocaleString() || "-"}</td>
-                                        <td className="px-3 py-2 font-mono text-xs">₹{p.base_price?.toLocaleString() || "-"}</td>
-                                        <td className={`px-3 py-2 font-mono text-xs font-bold ${(p.round_adjustment || 0) > 0 ? "text-green-600" : (p.round_adjustment || 0) < 0 ? "text-red-600" : ""}`}>
-                                            {p.round_adjustment ? `${p.round_adjustment > 0 ? "+" : ""}₹${p.round_adjustment.toLocaleString()}` : "-"}
-                                        </td>
-                                        <td className="px-3 py-2">
-                                            <NeoBadge variant={
-                                                p.status === "sold" ? "success" :
-                                                    p.status === "active" ? "info" : "neutral"
-                                            }>
-                                                {p.status}
-                                            </NeoBadge>
-                                        </td>
-                                        <td className="px-3 py-2 font-mono font-bold text-xs">{p.current_bid ? `₹${p.current_bid.toLocaleString()}` : "-"}</td>
-                                    </>
-                                )}
-                            />
-                        </div>
-                    </NeoCard>
-                </div>
-            </div>
         </NeoLayout>
     );
 }
