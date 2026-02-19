@@ -413,6 +413,7 @@ export default function AdminPage() {
                         </NeoCard>
                     </div>
                 </div>
+            </div>
         </NeoLayout>
     );
 }
