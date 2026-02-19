@@ -1,104 +1,167 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSocket } from "../context/socket-context";
+import NeoLayout from "../components/neo/NeoLayout";
+import NeoCard from "../components/neo/NeoCard";
+import NeoButton from "../components/neo/NeoButton";
+import NeoInput from "../components/neo/NeoInput";
+import { Loader2, Users, ArrowRight, ShieldAlert } from "lucide-react";
 import { motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
 
-export default function LoginPage() {
-  const [name, setName] = useState("");
+export default function Home() {
+  const router = useRouter();
+  const { isConnected } = useSocket();
+  const [teams, setTeams] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [teamName, setTeamName] = useState<string>("");
   const [passcode, setPasscode] = useState("");
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setIsLoading(true);
-
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, passcode }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || "Login failed");
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        const res = await fetch("/api/data/teams");
+        if (res.ok) {
+          const data = await res.json();
+          setTeams(data);
+        }
+      } catch (err) {
+        console.error("Failed to load teams", err);
+      } finally {
+        setLoading(false);
       }
+    };
+    fetchTeams();
+  }, []);
 
-      const team = await res.json();
-      // Store team info in localStorage for simple persistence
-      localStorage.setItem("team_id", team.id);
-      localStorage.setItem("team_name", team.name);
+  const handleLogin = () => {
+    if (!teamName.trim()) {
+      setError("Please enter your team name");
+      return;
+    }
+    // Match team by name (case-insensitive)
+    const team = teams.find(t => t.name.toLowerCase() === teamName.trim().toLowerCase());
+    if (!team) {
+      setError("Team not found! Please check the team name.");
+      return;
+    }
+    if (passcode.length < 3) {
+      setError("Enter a valid passcode (any 3+ chars for demo)");
+      return;
+    }
 
-      router.push("/dashboard");
+    localStorage.setItem("team_id", team.id);
+    router.push("/dashboard");
+  };
 
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
+  const handleAdminLogin = () => {
+    if (passcode === "admin123") {
+      router.push("/admin");
+    } else {
+      setError("Invalid Admin Passcode");
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-black bg-[url('/planomics-white.png')] bg-cover bg-center bg-no-repeat bg-blend-overlay bg-black/80">
+    <NeoLayout
+      className="flex flex-col items-center justify-center min-h-screen relative overflow-hidden"
+      containerized={false}
+    >
+      {/* Background decoration */}
+      <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none z-0 flex flex-wrap">
+        {Array.from({ length: 20 }).map((_, i) => (
+          <div key={i} className="w-24 h-24 border-r border-b border-black/20" />
+        ))}
+      </div>
+
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md overflow-hidden rounded-2xl bg-white/10 p-8 backdrop-blur-xl border border-white/20 shadow-2xl"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="z-10 w-full max-w-md"
       >
-        <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-white mb-2">AU-FEST 2026</h1>
-          <p className="text-gray-300">Enter your credentials to join the auction</p>
+        <div className="mb-8 text-center relative">
+          <div className="absolute -top-12 -left-12 w-24 h-24 bg-[var(--color-secondary)] rounded-full blur-3xl opacity-30" />
+          <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-[var(--color-primary)] rounded-full blur-3xl opacity-30" />
+
+          <h1 className="text-6xl font-black uppercase tracking-tighter mb-2" style={{ textShadow: "4px 4px 0 var(--color-surface)" }}>
+            AU-FEST
+          </h1>
+          <p className="text-xl font-bold uppercase tracking-widest bg-black text-white px-4 py-1 inline-block -rotate-2">
+            2026 Auction
+          </p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Team Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-500 focus:border-purple-500 focus:ring-purple-500 focus:outline-none transition-all"
-              placeholder="e.g. Team A"
-              required
-            />
+        <NeoCard className="bg-white">
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 bg-[var(--color-primary)] border-4 border-black flex items-center justify-center shadow-[4px_4px_0_black]">
+              <Users size={32} className="text-white" />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Passcode</label>
-            <input
+          <h2 className="text-2xl font-black uppercase text-center mb-1">Team Login</h2>
+          <p className="text-center text-gray-500 font-bold text-sm uppercase mb-6">
+            Enter your team name to join the bidding war
+          </p>
+
+          <div className="space-y-4">
+            <NeoInput
+              label="Team Name"
+              type="text"
+              placeholder="Enter your team name"
+              value={teamName}
+              onChange={(e) => setTeamName(e.target.value)}
+            />
+
+            <NeoInput
+              label="Passcode"
               type="password"
+              placeholder="••••••"
               value={passcode}
               onChange={(e) => setPasscode(e.target.value)}
-              className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-500 focus:border-purple-500 focus:ring-purple-500 focus:outline-none transition-all"
-              placeholder="••••••••"
-              required
             />
-          </div>
 
-          {error && (
-            <div className="text-red-400 text-sm text-center bg-red-500/10 py-2 rounded border border-red-500/20">
-              {error}
+            {error && (
+              <motion.div
+                initial={{ height: 0 }} animate={{ height: "auto" }}
+                className="text-red-600 font-bold text-sm bg-red-100 p-2 border-2 border-red-500 flex items-center gap-2"
+              >
+                <ShieldAlert size={16} />{error}
+              </motion.div>
+            )}
+
+            <NeoButton
+              className="w-full text-xl"
+              onClick={handleLogin}
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="animate-spin" /> : <>ENTER AUCTION <ArrowRight size={20} className="ml-2" /></>}
+            </NeoButton>
+
+            <div className="relative flex py-2 items-center">
+              <div className="flex-grow border-t-2 border-black"></div>
+              <span className="flex-shrink mx-4 text-black font-bold text-xs uppercase">Or Admin Access</span>
+              <div className="flex-grow border-t-2 border-black"></div>
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 px-4 py-3 font-semibold text-white shadow-lg hover:from-purple-500 hover:to-blue-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02]"
-          >
-            {isLoading ? (
-              <span className="flex items-center justify-center gap-2">
-                <Loader2 className="w-5 h-5 animate-spin" /> Logging in...
-              </span>
-            ) : "Enter Auction"}
-          </button>
-        </form>
+            <NeoButton
+              variant="secondary"
+              className="w-full"
+              onClick={handleAdminLogin}
+            >
+              ADMIN PANEL
+            </NeoButton>
+          </div>
+        </NeoCard>
+
+        <div className="mt-8 text-center">
+          <div className={`inline-flex items-center gap-2 px-4 py-2 border-2 border-black font-bold uppercase text-xs ${isConnected ? 'bg-green-400' : 'bg-red-400'}`}>
+            <span className={`w-3 h-3 border-2 border-black ${isConnected ? 'bg-green-600' : 'bg-red-600'}`} />
+            {isConnected ? "Server Online" : "Connecting..."}
+          </div>
+        </div>
       </motion.div>
-    </div>
+    </NeoLayout>
   );
 }

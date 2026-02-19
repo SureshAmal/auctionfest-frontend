@@ -1,26 +1,94 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Core Palette - High Energy (Default) */
+  --color-bg: #FFFFFF;
+  --color-surface: #FFD700;
+  --color-primary: #FF4D00;
+  --color-text: #000000;
+  --color-border: #000000;
+  --color-secondary: #0087FF; /* Adding blue for variety */
+  --color-danger: #FF0000;
+  --color-success: #00FF00;
+
+  /* Neo Brutalism Tokens */
+  --neo-border-width: 4px;
+  --neo-radius: 0px;
+  --neo-shadow-offset-x: 6px;
+  --neo-shadow-offset-y: 6px;
+  --neo-shadow-color: #000000;
+
+  /* Typography */
+  --font-weight-bold: 800;
+  --font-weight-heavy: 900;
+  
+  /* Animation */
+  --neo-transition-fast: 120ms cubic-bezier(.2,.8,.2,1);
+  --neo-transition-medium: 200ms cubic-bezier(.2,.8,.2,1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Theme Variants (can be applied to body via JS) */
+body[data-theme="modern-tech"] {
+  --color-bg: #F0F0F0;
+  --color-surface: #00FFFF;
+  --color-primary: #FF00FF;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body[data-theme="corporate-fun"] {
+  --color-bg: #E0E0E0;
+  --color-surface: #F9BC60;
+  --color-primary: #1A1A1A;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: 'Inter', sans-serif; /* Explicitly set Inter if available, otherwise fallback */
+  overflow-x: hidden; /* Prevent scrollbar shift from animations */
+}
+
+/* Utility Classes for Neo-Brutalism */
+
+.neo-border {
+  border: var(--neo-border-width) solid var(--color-border);
+}
+
+.neo-shadow {
+  box-shadow: var(--neo-shadow-offset-x) var(--neo-shadow-offset-y) 0 var(--neo-shadow-color);
+}
+
+.neo-input {
+  border: var(--neo-border-width) solid var(--color-border);
+  border-radius: var(--neo-radius);
+  padding: 0.75rem 1rem;
+  font-weight: var(--font-weight-bold);
+  outline: none;
+  transition: all var(--neo-transition-fast);
+}
+
+.neo-input:focus {
+  background-color: var(--color-surface);
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 var(--neo-shadow-color);
+}
+
+/* Animation Utilities */
+.neo-transition {
+  transition: all var(--neo-transition-fast);
+}
+
+.neo-press {
+  transition: transform var(--neo-transition-fast), box-shadow var(--neo-transition-fast);
+}
+
+.neo-press:active {
+  transform: translate(calc(var(--neo-shadow-offset-x) / 1.5), calc(var(--neo-shadow-offset-y) / 1.5));
+  box-shadow: 2px 2px 0 var(--neo-shadow-color);
+}
+
+/* Typography Overrides */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: var(--font-weight-heavy);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }

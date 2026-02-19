@@ -1,0 +1,26 @@
+"use client";
+
+import React from "react";
+import { motion } from "framer-motion";
+
+interface NeoCardProps {
+    children: React.ReactNode;
+    className?: string;
+    hoverEffect?: boolean;
+}
+
+export default function NeoCard({ children, className = "", hoverEffect = false }: NeoCardProps) {
+    return (
+        <motion.div
+            initial={{ boxShadow: "6px 6px 0 var(--neo-shadow-color)" }}
+            whileHover={hoverEffect ? {
+                x: -2,
+                y: -2,
+                boxShadow: "10px 10px 0 var(--neo-shadow-color)"
+            } : {}}
+            className={`bg-[var(--color-bg)] neo-border p-6 ${className}`}
+        >
+            {children}
+        </motion.div>
+    );
+}

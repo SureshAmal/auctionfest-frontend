@@ -1,7 +1,18 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import { useMemo, useState, useEffect } from "react";
+// import plotData from "@/app/data/plots.json"; // REMOVED: Fetching from API
+
+interface PlotData {
+    id: number | string; // ID might be string from DXF
+    cx: number;
+    cy: number;
+    is_red?: boolean;
+    color?: string;
+    polygon: number[][]; // [[x,y], [x,y], ...]
+}
 
 interface Plot {
     number: number;
@@ -10,186 +21,216 @@ interface Plot {
 }
 
 interface MapProps {
-    plots: Plot[];
+    plots: Plot[]; // Backend status data
     currentPlotNumber: number | null;
 }
 
-/**
- * Plot positions mapped from the PLANOMICS TOWN PLAN image.
- * Each plot has an id, x/y position (as % from top-left), and width/height (as %).
- * Positions are derived by analyzing the map image for number labels and plot boundaries.
- *
- * Layout reference:
- * - Central octagonal area with CENTRAL LAKE in the middle
- * - Inner ring: plots 1-9 (around the central lake)
- * - Middle ring: plots 10-20 (surrounding inner ring, along roads)
- * - Outer ring: plots 21-37 (along the diagonal and edge roads)
- * - Corner/edge: plots 38-43 (peripheral plots)
- */
-const PLOT_POSITIONS: { id: number; x: number; y: number; w: number; h: number }[] = [
-    // === Inner ring (around Central Lake) ===
-    // Plot 1 - left of center lake
-    { id: 1, x: 35.5, y: 46, w: 5, h: 5 },
-    // Plot 2 - top-left of center (road junction)
-    { id: 2, x: 39, y: 38, w: 4, h: 4 },
-    // Plot 3 - top-center left
-    { id: 3, x: 44, y: 35.5, w: 4, h: 3.5 },
-    // Plot 4 - top-center right
-    { id: 4, x: 49, y: 35.5, w: 4, h: 3.5 },
-    // Plot 5 - right of center (upper)
-    { id: 5, x: 55, y: 38, w: 4, h: 4 },
-    // Plot 6 - right of center lake
-    { id: 6, x: 57, y: 46, w: 5, h: 5 },
-    // Plot 7 - bottom-right of center
-    { id: 7, x: 55, y: 52.5, w: 4, h: 4 },
-    // Plot 8 - bottom-center left
-    { id: 8, x: 44, y: 54, w: 4, h: 3.5 },
-    // Plot 9 - bottom-center right
-    { id: 9, x: 49, y: 54, w: 4, h: 3.5 },
-
-    // === Second ring (mid-ring, labeled on map) ===
-    // Plot 10 - far left (below plot 1)
-    { id: 10, x: 31, y: 50, w: 4, h: 4 },
-    // Plot 11 - left of plot 1
-    { id: 11, x: 33, y: 44, w: 4, h: 4 },
-    // Plot 12 - above plot 2, left diagonal
-    { id: 12, x: 37, y: 34, w: 3.5, h: 3.5 },
-    // Plot 13 - top area, above inner plots (left)
-    { id: 13, x: 43, y: 28, w: 4, h: 4 },
-    // Plot 14 - top area, below 13 (left)
-    { id: 14, x: 43, y: 32, w: 4.5, h: 3 },
-    // Plot 15 - top-right diagonal
-    { id: 15, x: 56, y: 34, w: 3.5, h: 3.5 },
-    // Plot 16 - right of center lake (mid)
-    { id: 16, x: 61, y: 44, w: 4, h: 4 },
-    // Plot 17 - right below center, diagonal
-    { id: 17, x: 60, y: 52, w: 3.5, h: 3.5 },
-    // Plot 18 - bottom area (left)
-    { id: 18, x: 43, y: 60, w: 4.5, h: 3 },
-    // Plot 19 - bottom area (right)
-    { id: 19, x: 48, y: 58, w: 4.5, h: 3 },
-    // Plot 20 - bottom-left diagonal
-    { id: 20, x: 37, y: 56, w: 3.5, h: 3.5 },
-
-    // === Outer ring and diagonal roads ===
-    // Plot 21 - left side, above center
-    { id: 21, x: 27, y: 47, w: 4, h: 5 },
-    // Plot 22 - left diagonal, below center
-    { id: 22, x: 30, y: 40, w: 4, h: 4 },
-    // Plot 23 - upper-left diagonal
-    { id: 23, x: 33, y: 30, w: 4, h: 4 },
-    // Plot 24 - upper area, slightly left
-    { id: 24, x: 37, y: 22, w: 4, h: 4 },
-    // Plot 25 - top center, above 26
-    { id: 25, x: 43, y: 20, w: 5, h: 4 },
-    // Plot 26 - top center (left)
-    { id: 26, x: 48, y: 18, w: 5, h: 4 },
-    // Plot 27 - below 25/26 (left)
-    { id: 27, x: 45, y: 24, w: 4, h: 3.5 },
-    // Plot 28 - upper-right diagonal
-    { id: 28, x: 58, y: 22, w: 4, h: 4 },
-    // Plot 29 - right side, upper
-    { id: 29, x: 65, y: 29, w: 4, h: 4 },
-    // Plot 30 - right side, center
-    { id: 30, x: 66, y: 40, w: 4, h: 4 },
-    // Plot 31 - right side, below center
-    { id: 31, x: 66, y: 48, w: 4, h: 4 },
-    // Plot 32 - lower-right diagonal
-    { id: 32, x: 63, y: 56, w: 4, h: 4 },
-    // Plot 33 - lower-right
-    { id: 33, x: 60, y: 62, w: 4, h: 4 },
-    // Plot 34 - bottom center (right)
-    { id: 34, x: 52, y: 68, w: 5, h: 3.5 },
-    // Plot 35 - bottom center (left pair)
-    { id: 35, x: 46, y: 66, w: 4.5, h: 3.5 },
-    // Plot 36 - bottom center left
-    { id: 36, x: 40, y: 68, w: 5, h: 3.5 },
-    // Plot 37 - lower-left diagonal
-    { id: 37, x: 32, y: 63, w: 4, h: 4 },
-
-    // === Edge/Corner plots ===
-    // Plot 38 - far left, center
-    { id: 38, x: 24, y: 56, w: 4, h: 4 },
-    // Plot 39 - far left, above
-    { id: 39, x: 19, y: 44, w: 4, h: 5 },
-    // Plot 40 - far bottom-left
-    { id: 40, x: 19, y: 65, w: 5, h: 5 },
-    // Plot 41 - far right, center
-    { id: 41, x: 74, y: 44, w: 5, h: 5 },
-    // Plot 42 - far top-right
-    { id: 42, x: 74, y: 22, w: 5, h: 5 },
-    // Plot 43 - far top, right of center
-    { id: 43, x: 65, y: 14, w: 5, h: 5 },
-];
-
-/**
- * Map component that renders the PLANOMICS TOWN PLAN with interactive plot overlays.
- * Each plot is positioned based on coordinates derived from the actual map image.
- *
- * @param plots - Array of plot data from the backend
- * @param currentPlotNumber - The currently active plot number (if any)
- */
 export default function Map({ plots, currentPlotNumber }: MapProps) {
+    const [geometryData, setGeometryData] = useState<PlotData[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    // Fetch geometry from backend
+    useEffect(() => {
+        const fetchGeometry = async () => {
+            try {
+                // Use environment variable or default to localhost
+                const res = await fetch("http://localhost:8000/map/plots");
+                if (res.ok) {
+                    const data = await res.json();
+                    setGeometryData(data);
+                } else {
+                    console.error("Failed to fetch map data");
+                }
+            } catch (err) {
+                console.error("Error fetching map geometry:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchGeometry();
+    }, []);
+
+    // Merge static geometry data with dynamic status data
+    const mapPlots = useMemo(() => {
+        if (!geometryData.length) return [];
+
+        return geometryData.map(geo => {
+            // Flexible matching (string/number)
+            const statusInfo = plots.find(p => p.number == geo.id);
+            return {
+                ...geo,
+                status: statusInfo?.status || 'pending',
+                isCurrent: geo.id == currentPlotNumber, // Loose equality for string/number match
+                winner: statusInfo?.winner_team_id
+            };
+        });
+    }, [plots, currentPlotNumber, geometryData]);
+
+    // Calculate Focus: Find center of current plot(s)
+    const focusState = useMemo(() => {
+        if (!currentPlotNumber) return { x: 50, y: 50, scale: 1 };
+
+        const currentGeos = mapPlots.filter(p => p.id == currentPlotNumber);
+        if (currentGeos.length === 0) return { x: 50, y: 50, scale: 1 };
+
+        // Average center if multiple polygons (split plots)
+        const avgX = currentGeos.reduce((sum, p) => sum + p.cx, 0) / currentGeos.length;
+        const avgY = currentGeos.reduce((sum, p) => sum + p.cy, 0) / currentGeos.length;
+
+        // Higher zoom for better look (Increased to 6 as requested)
+        return { x: avgX, y: avgY, scale: 6 };
+    }, [currentPlotNumber, mapPlots]);
+
+    const activePlots = mapPlots.filter(p => p.isCurrent);
+
+    if (loading && geometryData.length === 0) {
+        return <div className="text-white text-center p-4">Loading Map...</div>;
+    }
+
     return (
-        <div className="relative w-full aspect-[4/3] bg-gray-900 rounded-xl overflow-hidden shadow-2xl border border-white/10">
-            {/* Base Map */}
-            <Image
-                src="/planomics-white.png"
-                alt="Planomics Town Plan"
-                fill
-                className="object-contain opacity-60"
-            />
+        // Aspect Ratio set to match Polygon Data Origin (approx 1.414 Landscape)
+        // The user provided images are Square, but the polygons were traced on a 1.414 map.
+        // We MUST use aspect-[1.414] for the polygons to align correctly.
+        // The Image will be stretched (object-fill) to fit this container, resolving the misalignment.
+        <div className="relative max-h-[80vh] w-auto aspect-[1.414] mx-auto bg-gray-900 rounded-xl overflow-hidden shadow-2xl border border-white/10 group">
 
-            {/* Plot Overlays */}
-            <div className="absolute inset-0">
-                {PLOT_POSITIONS.map((pos) => {
-                    const plot = plots.find(p => p.number === pos.id);
-                    const isActive = pos.id === currentPlotNumber;
-                    const isSold = plot?.status === 'sold';
-                    const isPending = !isSold && !isActive;
+            {/* Movable Container (Pan & Zoom) */}
+            <motion.div
+                className="relative w-full h-full"
+                animate={{
+                    scale: focusState.scale,
+                    x: `${(50 - focusState.x) * focusState.scale}%`, // Pan to center
+                    y: `${(50 - focusState.y) * focusState.scale}%`,
+                }}
+                transition={{ duration: 1.2, ease: "easeInOut" }}
+                style={{ originX: 0.5, originY: 0.5 }} // Scale from center of view
+            >
+                {/* 1. Base Map - BACKGROUND */}
+                <div className="absolute inset-0 w-full h-full">
+                    <Image
+                        src="/planomics.png"
+                        alt="Planomics Town Plan"
+                        fill
+                        className="object-fill"
+                        style={{ transform: "scale(0.94) translate(-0.5%, -2.5%)", transformOrigin: "center" }}
+                        priority
+                    />
+                </div>
 
-                    return (
-                        <motion.div
-                            key={pos.id}
-                            initial={{ opacity: 0 }}
-                            animate={{
-                                opacity: isActive ? 1 : isSold ? 0.7 : 0.15,
-                                scale: isActive ? 1.05 : 1,
-                            }}
-                            whileHover={{ opacity: 0.9, scale: 1.03 }}
-                            transition={{ duration: 0.3 }}
-                            className={`absolute flex items-center justify-center rounded-md cursor-pointer border
-                                ${isActive
-                                    ? 'bg-purple-500/50 border-purple-400 z-20 shadow-lg shadow-purple-500/30'
-                                    : isSold
-                                        ? 'bg-green-500/40 border-green-400/60 z-10'
-                                        : 'bg-white/5 border-white/10 hover:bg-white/15'
-                                }
-                            `}
-                            style={{
-                                top: `${pos.y}%`,
-                                left: `${pos.x}%`,
-                                width: `${pos.w}%`,
-                                height: `${pos.h}%`,
-                            }}
-                        >
-                            <span className={`font-bold text-[10px] sm:text-xs leading-none
-                                ${isActive ? 'text-white' : isSold ? 'text-green-200' : 'text-gray-400'}
-                            `}>
-                                {pos.id}
-                            </span>
-
-                            {/* Active plot pulse animation */}
-                            {isActive && (
-                                <motion.div
-                                    className="absolute inset-0 rounded-md border-2 border-purple-400"
-                                    animate={{ opacity: [0.4, 1, 0.4] }}
-                                    transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+                {/* 2. Highlight Layer - Only the active plot reveals the Full Color Bright Image */}
+                <svg
+                    viewBox="0 0 100 100"
+                    className="absolute inset-0 w-full h-full pointer-events-none"
+                    preserveAspectRatio="none"
+                >
+                    <defs>
+                        {/* Define Clip Path for Active Plots */}
+                        <clipPath id="active-clip">
+                            {activePlots.map((plot, i) => (
+                                <polygon
+                                    key={i}
+                                    points={plot.polygon.map(pt => `${pt[0]},${pt[1]}`).join(" ")}
                                 />
-                            )}
-                        </motion.div>
-                    );
-                })}
+                            ))}
+                        </clipPath>
+
+                        {/* Shadow Filter for "Lift" Effect */}
+                        <filter id="lift-shadow" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="blur" />
+                            <feOffset in="blur" dx="1" dy="1" result="offsetBlur" />
+                            <feFlood floodColor="rgba(0,0,0,0.7)" result="color" />
+                            <feComposite in="color" in2="offsetBlur" operator="in" result="shadow" />
+                            <feMerge>
+                                <feMergeNode in="shadow" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                    </defs>
+
+                    {/* The Full Color Map Image - Revealed ONLY where clipped. */}
+                    <AnimatePresence>
+                        {activePlots.length > 0 && (
+                            <motion.image
+                                href="/map-v3.png"
+                                x="0" y="0" width="100" height="100"
+                                clipPath="url(#active-clip)"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.5 }}
+                                preserveAspectRatio="none"
+                            />
+                        )}
+                    </AnimatePresence>
+
+                    {/* 3. Stroke/Outline for Active Plots */}
+                    <AnimatePresence>
+                        {activePlots.map((plot, index) => (
+                            <motion.polygon
+                                key={`outline-${plot.id}-${index}`}
+                                points={plot.polygon.map(pt => `${pt[0]},${pt[1]}`).join(" ")}
+                                fill="transparent"
+                                stroke="#facc15" // Gold/Yellow Highlight
+                                strokeWidth="0.4"
+                                filter="url(#lift-shadow)" // Apply shadow
+                                initial={{ pathLength: 0, opacity: 0, scale: 1 }}
+                                animate={{
+                                    pathLength: 1,
+                                    opacity: 1,
+                                    scale: 1.05, // Slight scale up for "lift"
+                                    translateX: -0.5, // Center the scale (approx)
+                                    translateY: -0.5
+                                }}
+                                exit={{ opacity: 0, scale: 1 }}
+                                transition={{ duration: 0.8, ease: "backOut" }}
+                                style={{ transformBox: "fill-box", transformOrigin: "center" }}
+                            />
+                        ))}
+                    </AnimatePresence>
+                </svg>
+
+                {/* 4. Sold Plots Overlay - Just faint green fill */}
+                <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
+                    {mapPlots.filter(p => p.status === 'sold' && !p.isCurrent).map((plot, i) => (
+                        <polygon
+                            key={`sold-${i}`}
+                            points={plot.polygon.map(pt => `${pt[0]},${pt[1]}`).join(" ")}
+                            fill="rgba(34, 197, 94, 0.3)" // Green
+                            stroke="rgba(34, 197, 94, 0.5)"
+                            strokeWidth="0.05"
+                        />
+                    ))}
+                </svg>
+
+                {/* 5. Active Plot Pulse/Glow */}
+                {activePlots.map((plot, i) => (
+                    <svg key={`pulse-${i}`} viewBox="0 0 100 100" className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" preserveAspectRatio="none">
+                        <motion.polygon
+                            points={plot.polygon.map(pt => `${pt[0]},${pt[1]}`).join(" ")}
+                            fill="transparent"
+                            stroke="#fbbf24"
+                            strokeWidth={0.2}
+                            animate={{
+                                opacity: [0.8, 0.4, 0.8], // Pulse opacity only
+                                strokeWidth: [0.2, 0.5, 0.2]
+                            }}
+                            transition={{
+                                duration: 2,
+                                repeat: Infinity,
+                                ease: "easeInOut"
+                            }}
+                            style={{ vectorEffect: "non-scaling-stroke" }}
+                        />
+                    </svg>
+                ))}
+            </motion.div>
+
+            {/* Overlay Info */}
+            <div className="absolute top-4 left-4 pointer-events-none z-10">
+                <div className="bg-[var(--color-surface)] px-3 py-1.5 border-2 border-black font-bold text-xs text-black shadow-[2px_2px_0_black]">
+                    {currentPlotNumber ? `Viewing Plot ${currentPlotNumber}` : "Overview"}
+                </div>
             </div>
         </div>
     );
