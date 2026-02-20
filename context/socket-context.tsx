@@ -22,7 +22,8 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         // In dev, Next.js hot reload can cause multiple connections if not handled carefuly.
         // We'll create one connection.
-        const socketInstance = io("http://localhost:8000", {
+        const socketUrl = `http://${window.location.hostname || "localhost"}:8000`;
+        const socketInstance = io(socketUrl, {
             transports: ["websocket"], // Force websocket to avoid polling issues
             autoConnect: true,
         });
