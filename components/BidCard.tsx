@@ -207,9 +207,9 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
                 </div>
 
                 {/* Budget */}
-                <div className="flex justify-between text-sm font-bold uppercase m-1">
+                <div className="flex justify-between items-center text-sm font-black uppercase neo-border p-3 bg-yellow-400 text-black shadow-[4px_4px_0_black] mb-2">
                     <span>Remaining Budget</span>
-                    <span className="font-mono text-lg">₹ {(Number(userTeam.budget) - Number(userTeam.spent || 0)).toLocaleString("en-IN")}</span>
+                    <span className="font-mono text-xl">₹ {(Number(userTeam.budget) - Number(userTeam.spent || 0)).toLocaleString("en-IN")}</span>
                 </div>
 
                 {/* Bid Input with +/- */}

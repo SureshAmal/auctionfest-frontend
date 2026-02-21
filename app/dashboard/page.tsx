@@ -187,8 +187,8 @@ export default function Dashboard() {
                     </div>
 
                     <div className="flex flex-wrap gap-4 items-center justify-end">
-                        <div className="text-right neo-border px-4 py-2 bg-[var(--color-surface)]">
-                            <p className="text-xs font-bold uppercase">Remaining Budget</p>
+                        <div className="text-right neo-border px-4 py-2 bg-yellow-400 text-black shadow-[4px_4px_0_black]">
+                            <p className="text-xs font-black uppercase">Remaining Budget</p>
                             <p className="font-mono font-black text-xl">₹ {(Number(userTeam.budget) - Number(userTeam.spent || 0)).toLocaleString("en-IN")}</p>
                         </div>
 
