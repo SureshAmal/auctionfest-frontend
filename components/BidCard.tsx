@@ -17,6 +17,8 @@ interface BidCardProps {
     allTeams?: any[];
     /** Current auction round (1-4). */
     currentRound?: number;
+    /** The current auction status. */
+    auctionStatus?: string;
 }
 
 /**
@@ -25,7 +27,7 @@ interface BidCardProps {
  * Displays bid input with increment/decrement controls during bidding rounds (1 & 4).
  * Shows an "Adjustment Round" waiting message during rounds 2 & 3.
  */
-export default function BidCard({ currentPlot, userTeam, allTeams = [], currentRound = 1 }: BidCardProps) {
+export default function BidCard({ currentPlot, userTeam, allTeams = [], currentRound = 1, auctionStatus = "not_started" }: BidCardProps) {
     const { socket } = useSocket();
     const [bidAmount, setBidAmount] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -144,6 +146,40 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
         );
     }
 
+    // Show selling countdown lock state
+    if (auctionStatus === "selling") {
+        return (
+            <NeoCard className="bg-red-500 border-black animate-pulse shadow-[8px_8px_0_black]">
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                    <Clock size={48} className="text-white mb-3" />
+                    <h3 className="text-4xl font-black uppercase mb-3 text-white tracking-widest leading-none">GOING...</h3>
+                    <div className="bg-black text-white px-4 py-2 border-2 border-white shadow-[4px_4px_0_white]">
+                        {currentPlot.winner_team_id ? (
+                            (() => {
+                                const winTeam = allTeams?.find(t => t.id === currentPlot.winner_team_id);
+                                const newBalance = winTeam ? (Number(winTeam.budget) - Number(winTeam.spent) - Number(currentPlot.current_bid)) : 0;
+                                return (
+                                    <>
+                                        <p className="text-xs uppercase font-bold text-gray-300">Highest Bidder</p>
+                                        <p className="text-2xl font-black">{getTeamName(currentPlot.winner_team_id)}</p>
+                                        <p className="text-lg font-mono text-green-400">₹{Number(currentPlot.current_bid).toLocaleString("en-IN")}</p>
+                                        {winTeam && (
+                                            <p className="text-sm font-bold text-yellow-300 mt-2 border-t border-dashed border-gray-500 pt-1">
+                                                New Balance: ₹{newBalance.toLocaleString("en-IN")}
+                                            </p>
+                                        )}
+                                    </>
+                                );
+                            })()
+                        ) : (
+                            <p className="text-lg font-black uppercase">NO BIDS RECEIVED</p>
+                        )}
+                    </div>
+                </div>
+            </NeoCard>
+        );
+    }
+
     const minBid = currentPlot.current_bid
         ? currentPlot.current_bid + 100
         : (currentPlot.total_plot_price || 1000);
@@ -207,11 +243,14 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
                 </div>
 
                 {/* Projected Balance on Win */}
-                {bidAmountNum > 0 && (
+                {(bidAmountNum > 0 || currentPlot?.winner_team_id === userTeam.id) && (
                     <div className="flex justify-between items-center text-xs font-black uppercase neo-border p-2 bg-emerald-400 text-black shadow-[3px_3px_0_black] mb-3">
-                        <span>If Bid Won (Proj. Balance)</span>
+                        <span>If {bidAmountNum > 0 ? "Bid" : "Current Bid"} Won</span>
                         <span className="font-mono text-sm leading-none bg-white px-2 py-1 border-2 border-black">
-                            ₹ {Math.max(0, (Number(userTeam.budget) - Number(userTeam.spent || 0)) - bidAmountNum).toLocaleString("en-IN")}
+                            ₹ {Math.max(0,
+                                (Number(userTeam.budget) - Number(userTeam.spent || 0)) -
+                                (bidAmountNum > 0 ? bidAmountNum : Number(currentPlot.current_bid))
+                            ).toLocaleString("en-IN")}
                         </span>
                     </div>
                 )}

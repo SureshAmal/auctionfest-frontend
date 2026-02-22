@@ -10,7 +10,8 @@ import NeoBadge from "../../components/neo/NeoBadge";
 import NeoInput from "../../components/neo/NeoInput";
 import {
     Play, SkipForward, Pause, RefreshCw, Trophy,
-    ShieldAlert, Users, Settings, TrendingUp, TrendingDown
+    ShieldAlert, Users, Settings, TrendingUp, TrendingDown,
+    Clock
 } from "lucide-react";
 
 /**
@@ -121,7 +122,7 @@ export default function AdminPage() {
     }, [socket]);
 
     const status = auctionState?.status || "not_started";
-    const isRunning = status === "running";
+    const isRunning = status === "running" || status === "selling";
     const isPaused = status === "paused";
     const isCompleted = status === "completed";
     const isNotStarted = status === "not_started";
@@ -286,6 +287,18 @@ export default function AdminPage() {
                                     className={`text-xs py-2 ${!isRunning ? "opacity-50" : ""}`}
                                 >
                                     NEXT <SkipForward size={14} className="ml-1" />
+                                </NeoButton>
+                            </div>
+
+                            {/* Sell Action */}
+                            <div className="mb-3">
+                                <NeoButton
+                                    variant="primary"
+                                    className="text-xs py-2 font-black w-full shadow-[4px_4px_0_var(--color-primary)] hover:translate-x-[2px] border-2 border-[var(--color-primary)]"
+                                    onClick={() => sendAction("sell")}
+                                    disabled={!isRunning || status === "selling"}
+                                >
+                                    <Clock size={14} className="mr-1" /> START COUNTDOWN (SELL)
                                 </NeoButton>
                             </div>
 

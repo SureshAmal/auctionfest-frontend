@@ -97,7 +97,7 @@ export default function Dashboard() {
     const [allTeams, setAllTeams] = useState<any[]>([]);
     const [plots, setPlots] = useState<any[]>([]);
     const [currentPlot, setCurrentPlot] = useState<any>(null);
-    const [auctionStatus, setAuctionStatus] = useState("NOT_STARTED");
+    const [auctionStatus, setAuctionStatus] = useState<string>("NOT_STARTED");
     const [currentRound, setCurrentRound] = useState(1);
     const [recentBids, setRecentBids] = useState<any[]>([]);
 
@@ -117,8 +117,12 @@ export default function Dashboard() {
                 const allTeamsRes = await fetch("/api/data/teams");
                 if (allTeamsRes.ok) setAllTeams(await allTeamsRes.json());
 
+                let plotsData: any[] = [];
                 const plotsRes = await fetch("/api/data/plots");
-                if (plotsRes.ok) setPlots(await plotsRes.json());
+                if (plotsRes.ok) {
+                    plotsData = await plotsRes.json();
+                    setPlots(plotsData);
+                }
 
                 const stateRes = await fetch("/api/admin/state");
                 if (stateRes.ok) {
@@ -126,7 +130,9 @@ export default function Dashboard() {
                     setAuctionStatus(stateData.status);
                     setCurrentRound(stateData.current_round || 1);
                     if (stateData.current_plot) {
-                        setCurrentPlot(stateData.current_plot);
+                        // Use the plot from the /api/data/plots array if available to retain full bids/winner data
+                        const fullPlot = plotsData.find((p: any) => p.number === stateData.current_plot.number);
+                        setCurrentPlot(fullPlot || stateData.current_plot);
                     }
                 }
 
@@ -140,6 +146,19 @@ export default function Dashboard() {
 
         fetchData();
     }, [router]);
+
+    const [sellCountdown, setSellCountdown] = useState(3);
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (auctionStatus === "selling") {
+            setSellCountdown(3);
+            interval = setInterval(() => {
+                setSellCountdown(prev => (prev > 1 ? prev - 1 : 1));
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [auctionStatus]);
 
     // 2. Socket Listeners
     useEffect(() => {
@@ -269,7 +288,11 @@ export default function Dashboard() {
                         <div className="flex flex-col justify-center items-end neo-border px-4 py-2 bg-cyan-400 text-black shadow-[4px_4px_0_black]">
                             <p className="text-xs font-black uppercase text-black/70 mb-1">Remaining Budget</p>
                             <p className="font-mono font-black text-2xl tracking-tighter bg-white px-2 border-2 border-black shadow-[2px_2px_0_black]">
-                                ₹ {(Number(userTeam.budget) - Number(userTeam.spent || 0)).toLocaleString("en-IN")}
+                                ₹ {(
+                                    Number(userTeam.budget) -
+                                    Number(userTeam.spent || 0) -
+                                    (currentPlot?.winner_team_id === userTeam.id ? Number(currentPlot?.current_bid || 0) : 0)
+                                ).toLocaleString("en-IN")}
                             </p>
                         </div>
 
@@ -291,7 +314,7 @@ export default function Dashboard() {
                 </header>
 
                 {/* Main 3-Column Grid */}
-                {auctionStatus !== "running" ? (
+                {auctionStatus !== "running" && auctionStatus !== "selling" ? (
                     /* NOT RUNNING: Show only grayscale plot image */
                     <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
                         <NeoCard className="p-0 overflow-hidden relative bg-gray-100 w-full max-w-3xl h-full">
@@ -335,10 +358,35 @@ export default function Dashboard() {
                                         animate={{ x: 0, opacity: 1 }}
                                         exit={{ x: -300, opacity: 0 }}
                                         transition={{ type: "tween", duration: 0.3 }}
-                                        className="w-full h-full flex items-center justify-center"
+                                        className="w-full h-full flex items-center justify-center relative"
                                     >
                                         {currentPlot ? (
-                                            <AnimatedSvgPlot plotNumber={currentPlot.number} />
+                                            <>
+                                                <AnimatedSvgPlot plotNumber={currentPlot.number} />
+                                                {/* Countdown Overlay Layer */}
+                                                <AnimatePresence>
+                                                    {auctionStatus === "selling" && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0, scale: 0.5 }}
+                                                            animate={{ opacity: 1, scale: 1 }}
+                                                            exit={{ opacity: 0, scale: 1.5 }}
+                                                            className="absolute inset-0 bg-red-600/90 z-20 flex flex-col items-center justify-center backdrop-blur-sm shadow-[inset_0_0_50px_rgba(0,0,0,0.5)]"
+                                                        >
+                                                            <motion.span
+                                                                key={sellCountdown}
+                                                                initial={{ scale: 2, opacity: 0 }}
+                                                                animate={{ scale: 1, opacity: 1 }}
+                                                                className="text-white font-black text-[15rem] leading-none drop-shadow-[10px_10px_0_black]"
+                                                            >
+                                                                {sellCountdown}
+                                                            </motion.span>
+                                                            <p className="text-white font-black text-4xl mt-4 tracking-widest uppercase bg-black px-6 py-2 border-4 border-white">
+                                                                Going Once...
+                                                            </p>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </>
                                         ) : (
                                             <div className="text-center text-gray-400">
                                                 <MapPin size={64} className="mx-auto mb-2 opacity-30" />
@@ -403,6 +451,7 @@ export default function Dashboard() {
                                 userTeam={userTeam}
                                 allTeams={allTeams}
                                 currentRound={currentRound}
+                                auctionStatus={auctionStatus}
                             />
 
                             {/* Sold Plots Summary - visible during adjustment rounds */}
