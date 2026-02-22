@@ -206,11 +206,15 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
                     </div>
                 </div>
 
-                {/* Budget */}
-                <div className="flex justify-between items-center text-sm font-black uppercase neo-border p-3 bg-yellow-400 text-black shadow-[4px_4px_0_black] mb-2">
-                    <span>Remaining Budget</span>
-                    <span className="font-mono text-xl">₹ {(Number(userTeam.budget) - Number(userTeam.spent || 0)).toLocaleString("en-IN")}</span>
-                </div>
+                {/* Projected Balance on Win */}
+                {bidAmountNum > 0 && (
+                    <div className="flex justify-between items-center text-xs font-black uppercase neo-border p-2 bg-emerald-400 text-black shadow-[3px_3px_0_black] mb-3">
+                        <span>If Bid Won (Proj. Balance)</span>
+                        <span className="font-mono text-sm leading-none bg-white px-2 py-1 border-2 border-black">
+                            ₹ {Math.max(0, (Number(userTeam.budget) - Number(userTeam.spent || 0)) - bidAmountNum).toLocaleString("en-IN")}
+                        </span>
+                    </div>
+                )}
 
                 {/* Bid Input with +/- */}
                 <div className="relative flex items-center gap-4">

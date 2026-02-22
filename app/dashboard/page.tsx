@@ -11,6 +11,85 @@ import NeoBadge from "../../components/neo/NeoBadge";
 import { motion, AnimatePresence } from "framer-motion";
 import { LogOut, Activity, MapPin, Info } from "lucide-react";
 
+/** Component to dynamically fetch, parse, and animate SVG plots from /plots_svg/ */
+const AnimatedSvgPlot = ({ plotNumber }: { plotNumber: number | string }) => {
+    const [svgData, setSvgData] = useState<{ viewBox: string, points: string } | null>(null);
+
+    useEffect(() => {
+        const fetchSvg = async () => {
+            try {
+                const res = await fetch(`/plots_svg/${plotNumber}.svg`);
+                if (res.ok) {
+                    const text = await res.text();
+                    // extract viewBox and polygon points using regex
+                    const viewBoxMatch = text.match(/viewBox="([^"]+)"/);
+                    const pointsMatch = text.match(/points="([^"]+)"/);
+
+                    if (viewBoxMatch && pointsMatch) {
+                        setSvgData({ viewBox: viewBoxMatch[1], points: pointsMatch[1] });
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to load SVG", e);
+            }
+        };
+
+        setSvgData(null);
+        fetchSvg();
+    }, [plotNumber]);
+
+    if (!svgData) {
+        return (
+            <div className="text-center text-gray-400 w-full h-full flex flex-col items-center justify-center">
+                <MapPin size={64} className="mx-auto mb-2 opacity-30 animate-pulse" />
+                <p className="font-bold uppercase text-sm">Loading Shape...</p>
+            </div>
+        );
+    }
+
+    const [minX, minY, w, h] = svgData.viewBox.split(' ').map(Number);
+    const centerX = minX + w / 2;
+    const centerY = minY + h / 2;
+    // Calculate a responsive font size based on the bounding box height/width
+    const fontSize = Math.min(w, h) * 0.15;
+
+    return (
+        <svg
+            id={plotNumber.toString()}
+            viewBox={svgData.viewBox}
+            className="w-full h-full drop-shadow-2xl overflow-visible p-8"
+        >
+            <motion.polygon
+                points={svgData.points}
+                fill="rgba(250, 204, 21, 0.5)" // yellow-400 semi-transparent
+                stroke="#facc15" // yellow-400
+                strokeWidth={svgData.viewBox.includes("1280") ? "10" : "4"} // dynamic stroke based on common viewBox size
+                strokeLinejoin="round"
+                initial={{ pathLength: 0, fillOpacity: 0 }}
+                animate={{ pathLength: 1, fillOpacity: 0.5 }}
+                transition={{
+                    pathLength: { duration: 1.5, ease: "easeInOut" },
+                    fillOpacity: { duration: 1, delay: 0.8 }
+                }}
+            />
+
+            <motion.text
+                x={centerX}
+                y={centerY}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 1.5, type: "spring" }}
+                className="font-black fill-black drop-shadow-md pointer-events-none"
+                style={{ fontSize: fontSize }}
+            >
+                {plotNumber}
+            </motion.text>
+        </svg>
+    );
+};
+
 export default function Dashboard() {
     const router = useRouter();
     const { socket, isConnected } = useSocket();
@@ -101,7 +180,7 @@ export default function Dashboard() {
             } : null);
 
             setPlots(prev => prev.map(p =>
-                p.number === data.plot_number ? { ...p, current_bid: data.amount } : p
+                p.number === data.plot_number ? { ...p, current_bid: data.amount, winner_team_id: data.team_id } : p
             ));
         };
 
@@ -187,9 +266,11 @@ export default function Dashboard() {
                     </div>
 
                     <div className="flex flex-wrap gap-4 items-center justify-end">
-                        <div className="text-right neo-border px-4 py-2 bg-yellow-400 text-black shadow-[4px_4px_0_black]">
-                            <p className="text-xs font-black uppercase">Remaining Budget</p>
-                            <p className="font-mono font-black text-xl">₹ {(Number(userTeam.budget) - Number(userTeam.spent || 0)).toLocaleString("en-IN")}</p>
+                        <div className="flex flex-col justify-center items-end neo-border px-4 py-2 bg-cyan-400 text-black shadow-[4px_4px_0_black]">
+                            <p className="text-xs font-black uppercase text-black/70 mb-1">Remaining Budget</p>
+                            <p className="font-mono font-black text-2xl tracking-tighter bg-white px-2 border-2 border-black shadow-[2px_2px_0_black]">
+                                ₹ {(Number(userTeam.budget) - Number(userTeam.spent || 0)).toLocaleString("en-IN")}
+                            </p>
                         </div>
 
                         <div className="flex items-center gap-2 neo-border px-3 py-2 bg-[var(--color-secondary)] text-white shadow-[4px_4px_0_black]">
@@ -257,14 +338,7 @@ export default function Dashboard() {
                                         className="w-full h-full flex items-center justify-center"
                                     >
                                         {currentPlot ? (
-                                            <img
-                                                src={`/plots/${currentPlot.number}.png`}
-                                                alt={`Plot ${currentPlot.number}`}
-                                                className="w-full h-full object-contain p-4"
-                                                onError={(e) => {
-                                                    (e.target as HTMLImageElement).src = "/planomics.png";
-                                                }}
-                                            />
+                                            <AnimatedSvgPlot plotNumber={currentPlot.number} />
                                         ) : (
                                             <div className="text-center text-gray-400">
                                                 <MapPin size={64} className="mx-auto mb-2 opacity-30" />
@@ -338,7 +412,7 @@ export default function Dashboard() {
                                         🏆 Sold Plots
                                     </h3>
                                     <div className="max-h-[200px] overflow-y-auto">
-                                        {plots.filter(p => p.status === "sold").length > 0 ? (
+                                        {plots.filter(p => p.status?.toLowerCase() === "sold" && p.winner_team_id).length > 0 ? (
                                             <table className="w-full text-xs">
                                                 <thead>
                                                     <tr className="border-b-2 border-black text-left uppercase">
@@ -348,7 +422,7 @@ export default function Dashboard() {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {plots.filter(p => p.status === "sold").map(p => (
+                                                    {plots.filter(p => p.status?.toLowerCase() === "sold" && p.winner_team_id).map(p => (
                                                         <tr key={p.number} className="border-b border-gray-200">
                                                             <td className="py-1 px-1 font-bold">#{p.number}</td>
                                                             <td className="py-1 px-1">{getTeamName(p.winner_team_id)}</td>
@@ -372,21 +446,22 @@ export default function Dashboard() {
                                     <Activity size={20} /> Feed
                                 </h3>
                                 <div className="space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
-                                    {recentBids.map((bid, i) => (
-                                        <motion.div
-                                            key={`${bid.timestamp}-${i}`}
-                                            initial={{ x: 20, opacity: 0 }}
-                                            animate={{ x: 0, opacity: 1 }}
-                                            className="flex flex-col bg-[var(--color-surface)] p-2 border-2 border-black font-bold shadow-[3px_3px_0_black]"
-                                        >
-                                            <div className="flex justify-between items-center">
-                                                <span className="uppercase text-sm">{bid.team_name}</span>
-                                                <span className="font-mono text-sm">₹ {bid.amount?.toLocaleString()}</span>
-                                            </div>
-                                            <span className="text-[10px] uppercase text-gray-400 mt-1">Plot #{bid.plot_number}</span>
-                                        </motion.div>
-                                    ))}
-                                    {recentBids.length === 0 && (
+                                    {recentBids
+                                        .filter(b => b.plot_number === currentPlot?.number)
+                                        .map((bid, i) => (
+                                            <motion.div
+                                                key={`${bid.timestamp}-${i}`}
+                                                initial={{ x: 20, opacity: 0 }}
+                                                animate={{ x: 0, opacity: 1 }}
+                                                className="flex flex-col bg-[var(--color-surface)] p-2 border-2 border-black font-bold shadow-[3px_3px_0_black]"
+                                            >
+                                                <div className="flex justify-between items-center">
+                                                    <span className="uppercase text-sm">{bid.team_name}</span>
+                                                    <span className="font-mono text-sm text-green-700">₹ {bid.amount?.toLocaleString()}</span>
+                                                </div>
+                                            </motion.div>
+                                        ))}
+                                    {recentBids.filter(b => b.plot_number === currentPlot?.number).length === 0 && (
                                         <p className="text-gray-500 italic text-sm border-2 border-dashed border-gray-300 p-4 text-center">
                                             No bids yet...
                                         </p>

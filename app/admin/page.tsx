@@ -254,7 +254,7 @@ export default function AdminPage() {
                             </h2>
 
                             {/* Auction Actions */}
-                            <div className="grid grid-cols-2 gap-2 mb-3">
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
                                 <NeoButton
                                     variant="success"
                                     onClick={() => sendAction("start")}
@@ -264,14 +264,6 @@ export default function AdminPage() {
                                     <Play size={14} className="mr-1" /> {isNotStarted ? "START" : isCompleted ? "RESTART" : "RESUME"}
                                 </NeoButton>
                                 <NeoButton
-                                    variant="secondary"
-                                    onClick={() => sendAction("next")}
-                                    disabled={!isRunning}
-                                    className={`text-xs py-2 ${!isRunning ? "opacity-50" : ""}`}
-                                >
-                                    <SkipForward size={14} className="mr-1" /> NEXT
-                                </NeoButton>
-                                <NeoButton
                                     variant="base"
                                     onClick={() => sendAction("pause")}
                                     disabled={!isRunning}
@@ -279,6 +271,26 @@ export default function AdminPage() {
                                 >
                                     <Pause size={14} className="mr-1" /> PAUSE
                                 </NeoButton>
+                                <NeoButton
+                                    variant="secondary"
+                                    onClick={() => sendAction("prev")}
+                                    disabled={!isRunning || (auctionState?.current_plot_number <= 1)}
+                                    className={`text-xs py-2 ${!isRunning || (auctionState?.current_plot_number <= 1) ? "opacity-30" : ""}`}
+                                >
+                                    <SkipForward size={14} className="mr-1 rotate-180" /> PREV
+                                </NeoButton>
+                                <NeoButton
+                                    variant="secondary"
+                                    onClick={() => sendAction("next")}
+                                    disabled={!isRunning}
+                                    className={`text-xs py-2 ${!isRunning ? "opacity-50" : ""}`}
+                                >
+                                    NEXT <SkipForward size={14} className="ml-1" />
+                                </NeoButton>
+                            </div>
+
+                            {/* Reset Action */}
+                            <div className="mb-3">
                                 <NeoButton
                                     variant="danger"
                                     className="text-xs py-2"
@@ -346,7 +358,7 @@ export default function AdminPage() {
                                 <Trophy size={16} className="text-yellow-600" /> Leaderboard
                             </h2>
                             <div className="space-y-1.5">
-                                {teams.map((team, i) => (
+                                {[...teams].sort((a, b) => b.plots_won - a.plots_won || parseFloat(b.spent || 0) - parseFloat(a.spent || 0)).map((team, i) => (
                                     <div key={team.id} className="flex justify-between items-center bg-white p-2 border-2 border-black text-xs">
                                         <div className="flex items-center gap-2">
                                             <span className="font-black w-5">#{i + 1}</span>

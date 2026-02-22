@@ -20,13 +20,13 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
     // Calculate Sold Plots Ledger
     const soldPlots = useMemo(() => {
         return plots
-            .filter(p => p.status === 'sold' && p.winner_team_id)
+            .filter(p => p.status?.toLowerCase() === 'sold' && p.winner_team_id)
             .map(p => {
                 const team = allTeams.find(t => t.id === p.winner_team_id);
                 return {
                     plotNumber: p.number,
                     teamName: team ? team.name : p.winner_team_id,
-                    price: p.current_bid || 0
+                    price: Number(p.current_bid) || 0
                 };
             })
             .sort((a, b) => b.price - a.price); // Sort by price desc
@@ -75,7 +75,7 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                             className="relative bg-white border-4 border-black shadow-[8px_8px_0_black] w-full max-w-4xl max-h-[90vh] flex flex-col pointer-events-auto overflow-hidden"
                         >
                             {/* 1. Full Image Top */}
-                            <div className="relative bg-gray-100 border-b-4 border-black h-96 shrink-0">
+                            <div className="relative bg-gray-100 border-b-4 border-black h-[40vh] min-h-[250px] shrink-0 overflow-hidden">
                                 <div
                                     className="relative w-full h-full cursor-zoom-in group"
                                     onClick={() => {
@@ -179,7 +179,7 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                                 dragConstraints={containerRef}
                                 dragElastic={0.2}
                                 dragMomentum={false}
-                                className="max-w-none shadow-2xl"
+                                className="max-w-full max-h-full object-contain shadow-2xl"
                             />
                         </motion.div>
                     </div>
