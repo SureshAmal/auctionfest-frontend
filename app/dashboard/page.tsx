@@ -488,10 +488,10 @@ export default function Dashboard() {
                                     <MapPin size={20} /> My Portfolio
                                 </h2>
                                 <div className="overflow-y-auto pr-1 flex-1 space-y-2">
-                                    {plots.filter(p => p.winner_team_id === userTeam.id).length === 0 && (
+                                    {plots.filter(p => p.winner_team_id === userTeam.id && p.status?.toLowerCase() === 'sold').length === 0 && (
                                         <p className="text-sm font-bold opacity-50 p-4 text-center">You don't own any plots to sell.</p>
                                     )}
-                                    {plots.filter(p => p.winner_team_id === userTeam.id).map(plot => {
+                                    {plots.filter(p => p.winner_team_id === userTeam.id && p.status?.toLowerCase() === 'sold').map(plot => {
                                         const currentValue = (parseFloat(plot.current_bid || plot.total_plot_price || 0) + parseFloat(plot.round_adjustment || 0));
                                         const maxAllowed = currentValue * 1.07;
                                         const activeOffer = rebidOffers.find(o => o.plot_number === plot.number && o.status === "active");
@@ -500,7 +500,7 @@ export default function Dashboard() {
                                             <div key={plot.number} className="neo-border p-3 bg-[var(--color-surface)]">
                                                 <div className="flex justify-between items-center mb-2">
                                                     <span className="font-black text-sm uppercase">Plot #{plot.number}</span>
-                                                    <span className="font-bold text-xs opacity-70">Base: ₹{currentValue.toLocaleString("en-IN")}</span>
+                                                    <span className="font-bold text-xs opacity-70">Value: ₹{currentValue.toLocaleString("en-IN")}</span>
                                                 </div>
 
                                                 {activeOffer ? (
@@ -512,9 +512,9 @@ export default function Dashboard() {
                                                     <div className="flex gap-2">
                                                         <input
                                                             type="number"
-                                                            placeholder={`Max ₹${Math.floor(maxAllowed)}`}
+                                                            placeholder={`₹${Math.floor(currentValue)} - ₹${Math.floor(maxAllowed)}`}
                                                             className="neo-input flex-1 text-sm py-1 px-2 min-w-0 bg-[var(--color-bg)]"
-                                                            value={markupInput[plot.number] || ""}
+                                                            value={markupInput[plot.number] ?? Math.floor(currentValue)}
                                                             onChange={(e) => setMarkupInput(prev => ({ ...prev, [plot.number]: e.target.value }))}
                                                             max={maxAllowed}
                                                         />
@@ -523,7 +523,7 @@ export default function Dashboard() {
                                                             className="text-xs py-1 px-3"
                                                             onClick={async () => {
                                                                 const price = parseFloat(markupInput[plot.number]);
-                                                                if (!price || price > maxAllowed || price < currentValue) return alert(`Invalid price! Must be between ₹${currentValue} and ₹${maxAllowed.toFixed(0)}`);
+                                                                if (!price || price > Math.floor(maxAllowed) || price < Math.floor(currentValue)) return alert(`Invalid price! Must be between ₹${Math.floor(currentValue).toLocaleString("en-IN")} and ₹${Math.floor(maxAllowed).toLocaleString("en-IN")}`);
 
                                                                 try {
                                                                     const res = await fetch("/api/rebid/offer", {
@@ -698,7 +698,7 @@ export default function Dashboard() {
                                             <p className="text-xs font-bold uppercase text-[var(--color-text)] opacity-50">Current Price</p>
                                             <p className="font-black text-lg">₹ {(Number(currentPlot.current_bid || currentPlot.total_plot_price || 0) + Number(currentPlot.round_adjustment || 0)).toLocaleString("en-IN")}</p>
                                         </div>
-                                        {Number(currentPlot.round_adjustment) !== 0 && (
+                                        {Number(currentPlot.round_adjustment) !== 0 && currentRound !== 4 && (
                                             <div className={`neo-border p-3 col-span-2 ${currentPlot.round_adjustment > 0 ? "bg-[var(--color-success)]/20" : "bg-[var(--color-danger)]/20"}`}>
                                                 <p className="text-xs font-bold uppercase text-[var(--color-text)] opacity-50">Round Adjustment</p>
                                                 <p className={`font-black text-lg ${currentPlot.round_adjustment > 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
