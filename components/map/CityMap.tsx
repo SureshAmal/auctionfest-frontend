@@ -128,7 +128,7 @@ export default function CityMap({ currentPlotNumber, plots = [], allTeams = [] }
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="opacity-70 text-xs font-bold uppercase">Price:</span>
-                            <span className="font-mono font-bold">₹ {Number(hoveredPlot.current_bid || 0).toLocaleString('en-IN')}</span>
+                            <span className="font-mono font-bold">₹ {(Number(hoveredPlot.current_bid || hoveredPlot.total_plot_price || 0) + Number(hoveredPlot.round_adjustment || 0)).toLocaleString('en-IN')}</span>
                         </div>
                     </div>
                 </div>

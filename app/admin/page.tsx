@@ -18,10 +18,11 @@ interface Plot {
     plot_type: string;
     actual_area: number;
     base_price: number;
+    total_plot_price: number;
     round_adjustment: number;
     status: string;
-    winner_team_id: string;
-    current_bid: number;
+    winner_team_id: string | null;
+    current_bid: number | null;
 }
 
 
@@ -90,6 +91,12 @@ export default function AdminPage() {
     const [adjustPlotNumber, setAdjustPlotNumber] = useState("");
     const [adjustAmount, setAdjustAmount] = useState("");
     const [adjustMessage, setAdjustMessage] = useState("");
+
+    // Policy Mode State
+    const [policyQuestions, setPolicyQuestions] = useState<any[]>([]);
+    const [activeQuestion, setActiveQuestion] = useState<string>("");
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
@@ -123,6 +130,22 @@ export default function AdminPage() {
         return () => clearInterval(interval);
     }, []);
 
+    // Fetch Questions when round changes to a policy round
+    useEffect(() => {
+        if ([2, 3, 5, 6].includes(currentRound)) {
+            fetch(`/api/admin/questions/${currentRound}`)
+                .then(res => res.json())
+                .then(data => {
+                    setPolicyQuestions(data);
+                    setCurrentQuestionIndex(0);
+                })
+                .catch(console.error);
+        } else {
+            setPolicyQuestions([]);
+            setCurrentQuestionIndex(0);
+        }
+    }, [currentRound]);
+
     // Socket Listeners
     useEffect(() => {
         if (!socket) return;
@@ -153,9 +176,14 @@ export default function AdminPage() {
             }
         };
 
+        const handleRebidPhaseUpdate = (data: any) => {
+            setAuctionState((prev: any) => ({ ...prev, rebid_phase_active: data.is_active }));
+        };
+
         socket.on("auction_state_update", handleStateUpdate);
         socket.on("round_change", handleRoundChange);
         socket.on("plot_adjustment", handlePlotAdjustment);
+        socket.on("rebid_phase_update", handleRebidPhaseUpdate);
         socket.on("new_bid", () => { /* Updated on next poll */ });
         socket.on("connection_count", (data: any) => {
             setConnectedCount(data.count);
@@ -167,11 +195,24 @@ export default function AdminPage() {
             socket.off("auction_state_update");
             socket.off("round_change");
             socket.off("plot_adjustment");
+            socket.off("rebid_phase_update");
             socket.off("new_bid");
             socket.off("connection_count");
             socket.off("auction_reset");
         };
     }, [socket]);
+
+    const handleRebidToggle = async (isActive: boolean) => {
+        try {
+            await fetch("/api/admin/rebid/toggle", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ is_active: isActive }),
+            });
+        } catch (err) {
+            console.error("Failed to toggle rebid", err);
+        }
+    };
 
     const status = auctionState?.status || "not_started";
     const isRunning = status === "running" || status === "selling";
@@ -248,13 +289,47 @@ export default function AdminPage() {
         setTimeout(() => setAdjustMessage(""), 4000);
     };
 
+    /** Undo the last plot adjustment */
+    const handleUndoAdjustment = async () => {
+        try {
+            const res = await fetch("/api/admin/undo-adjustment", { method: "POST" });
+            if (res.ok) {
+                const data = await res.json();
+                setAdjustMessage(data.message || "Undo successful");
+            } else {
+                setAdjustMessage("Undo failed");
+            }
+        } catch {
+            setAdjustMessage("Network error on undo");
+        }
+        setTimeout(() => setAdjustMessage(""), 3000);
+    };
+
+    /** Push a policy question to the teams */
+    const handlePushQuestion = async (desc: string) => {
+        try {
+            await fetch("/api/admin/push-question", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ policy_description: desc })
+            });
+            setActiveQuestion(desc);
+            setAdjustMessage("Question Pushed!");
+        } catch {
+            setAdjustMessage("Error pushing question");
+        }
+        setTimeout(() => setAdjustMessage(""), 3000);
+    };
+
     /** Get round label for display. */
     const getRoundLabel = (round: number) => {
         switch (round) {
             case 1: return "Bidding";
             case 2: return "Adjust";
             case 3: return "Adjust";
-            case 4: return "Final Bid";
+            case 4: return "Bidding";
+            case 5: return "Adjust";
+            case 6: return "Final Adj";
             default: return `R${round}`;
         }
     };
@@ -312,7 +387,7 @@ export default function AdminPage() {
                             <span className="font-bold uppercase text-sm">Online</span>
                         </div>
 
-                        <NeoBadge variant={isRunning ? "success" : isPaused ? "warning" : isCompleted ? "danger" : "neutral"}>
+                        <NeoBadge variant={isRunning ? "success" : isPaused ? "neutral" : isCompleted ? "danger" : "neutral"}>
                             {status.replace("_", " ")}
                         </NeoBadge>
 
@@ -422,7 +497,7 @@ export default function AdminPage() {
 
                             {/* Round Selector */}
                             <div className="flex gap-1 justify-between items-center neo-border px-1 bg-[var(--color-bg)] mb-3">
-                                {[1, 2, 3, 4].map(r => (
+                                {[1, 2, 3, 4, 5, 6].map(r => (
                                     <button
                                         key={r}
                                         onClick={() => handleSetRound(r)}
@@ -433,10 +508,79 @@ export default function AdminPage() {
                                 ))}
                             </div>
 
-                            {/* Adjustment Panel */}
-                            {(currentRound === 2 || currentRound === 3) && (
-                                <div className="space-y-2 neo-border p-2 bg-[var(--color-surface)]">
-                                    <p className="text-[10px] font-black uppercase">Adjust Rounds</p>
+                            {/* Rebid Phase Panel */}
+                            {currentRound === 4 && (
+                                <div className="space-y-2 neo-border p-2 bg-[var(--color-surface)] mb-3">
+                                    <h3 className="text-xs font-black uppercase flex items-center gap-2 text-[var(--color-secondary)]">
+                                        <Settings size={14} /> Rebid Phase (Round 4)
+                                    </h3>
+                                    <div className="flex gap-2 mb-2">
+                                        <NeoButton
+                                            variant={auctionState?.rebid_phase_active ? "danger" : "success"}
+                                            className="text-xs py-2 flex-1 font-bold"
+                                            onClick={() => handleRebidToggle(!auctionState?.rebid_phase_active)}
+                                        >
+                                            {auctionState?.rebid_phase_active ? "CLOSE REBID PHASE" : "OPEN REBID PHASE"}
+                                        </NeoButton>
+                                    </div>
+                                    <p className="text-[10px] font-medium opacity-70">
+                                        {auctionState?.rebid_phase_active
+                                            ? "Rebid phase is ACTIVE! Teams can currently trade plots across the network."
+                                            : "Rebid phase is CLOSED. Teams cannot list or buy plots right now."}
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Policy / Adjustment Panel */}
+                            {([2, 3, 5, 6].includes(currentRound)) && (
+                                <div className="space-y-2 neo-border p-2 bg-[var(--color-surface)] mb-3">
+                                    <h3 className="text-xs font-black uppercase flex items-center gap-2 text-[var(--color-secondary)]">
+                                        <AlertCircle size={14} /> Policy Mode (Round {currentRound})
+                                    </h3>
+
+                                    {/* Questions Display */}
+                                    {policyQuestions.length > 0 && (
+                                        <div className="flex flex-col gap-2 mb-3">
+                                            <div className="bg-[var(--color-bg)] neo-border p-2">
+                                                <p className="text-xs font-bold mb-2">
+                                                    Question {currentQuestionIndex + 1} of {policyQuestions.length}
+                                                </p>
+                                                <p className="text-sm font-black mb-3">
+                                                    {policyQuestions[currentQuestionIndex].policy_description}
+                                                </p>
+                                                <div className="flex justify-between items-center gap-2">
+                                                    <div className="flex gap-1 flex-1">
+                                                        <NeoButton
+                                                            variant="secondary"
+                                                            className="px-2 py-1 flex-1"
+                                                            disabled={currentQuestionIndex === 0}
+                                                            onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
+                                                        >
+                                                            <ChevronRight className="rotate-180 mx-auto" size={16} />
+                                                        </NeoButton>
+                                                        <NeoButton
+                                                            variant="secondary"
+                                                            className="px-2 py-1 flex-1"
+                                                            disabled={currentQuestionIndex === policyQuestions.length - 1}
+                                                            onClick={() => setCurrentQuestionIndex(prev => Math.min(policyQuestions.length - 1, prev + 1))}
+                                                        >
+                                                            <ChevronRight className="mx-auto" size={16} />
+                                                        </NeoButton>
+                                                    </div>
+                                                    <NeoButton
+                                                        variant="primary"
+                                                        className="px-4 py-1"
+                                                        onClick={() => handlePushQuestion(policyQuestions[currentQuestionIndex].policy_description)}
+                                                    >
+                                                        PUSH
+                                                    </NeoButton>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Manual Plot Adjustment Inputs */}
+                                    <p className="text-[10px] font-black uppercase mt-2">Manual Plot Adjusment</p>
                                     <input
                                         type="text"
                                         placeholder="Plots: 1,2,3"
@@ -450,39 +594,23 @@ export default function AdminPage() {
                                             placeholder="% ±"
                                             value={adjustAmount}
                                             onChange={(e) => setAdjustAmount(e.target.value)}
-                                            className="neo-input text-xs w-2/3"
+                                            className="neo-input text-xs w-1/2"
                                         />
-                                        <NeoButton variant="primary" className="text-xs w-1/3" onClick={handleAdjustPlot}>
-                                            GO
+                                        <NeoButton variant="primary" className="text-xs w-1/4" onClick={handleAdjustPlot}>
+                                            APPLY
+                                        </NeoButton>
+                                        <NeoButton variant="secondary" className="text-xs w-1/4 p-0 shrink-0" onClick={handleUndoAdjustment} title="Undo Last Transaction">
+                                            <Undo2 size={16} className="mx-auto" />
                                         </NeoButton>
                                     </div>
                                     {adjustMessage && (
-                                        <p className="text-[10px] font-bold text-[var(--color-success)] leading-tight">{adjustMessage}</p>
+                                        <p className="text-[10px] font-bold text-[var(--color-success)] leading-tight mt-1">{adjustMessage}</p>
                                     )}
                                 </div>
                             )}
                         </NeoCard>
 
-                        {/* Leaderboard */}
-                        <NeoCard className="hidden lg:flex flex-col min-h-0 overflow-hidden flex-1">
-                            <h2 className="text-sm font-black uppercase mb-2 flex items-center gap-2 shrink-0">
-                                <Trophy size={16} className="text-[var(--color-primary)]" /> Leaderboard
-                            </h2>
-                            <div className="space-y-1.5 flex-1 min-h-0 overflow-y-auto pr-1">
-                                {[...teams].sort((a, b) => b.plots_won - a.plots_won || parseFloat(b.spent || 0) - parseFloat(a.spent || 0)).map((team, i) => (
-                                    <div key={team.id} className="flex justify-between items-center bg-[var(--color-bg)] p-2 border-2 border-[var(--color-border)] text-xs">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-black w-5">#{i + 1}</span>
-                                            <span className="font-bold uppercase">{team.name}</span>
-                                        </div>
-                                        <div className="text-right font-mono font-bold">
-                                            <div className="text-[var(--color-success)]">★{team.plots_won}</div>
-                                            <div>₹{Number(team.spent || 0).toLocaleString("en-IN")}</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </NeoCard>
+
                     </div>
 
                     {/* Right: Plot Status Table - full remaining space */}
@@ -496,9 +624,9 @@ export default function AdminPage() {
                                         { accessorKey: "plot_type", header: "Type", cell: ({ row }) => <span className="text-xs font-bold uppercase">{row.original.plot_type || "-"}</span> },
                                         { accessorKey: "actual_area", header: "Area", cell: ({ row }) => <span className="font-mono text-xs">{row.original.actual_area?.toLocaleString() || "-"}</span> },
                                         {
-                                            accessorKey: "base_price",
-                                            header: "Base",
-                                            cell: ({ row }) => <span className="font-mono text-xs">₹{row.original.base_price?.toLocaleString() || "-"}</span>
+                                            accessorKey: "total_plot_price",
+                                            header: "Price",
+                                            cell: ({ row }) => <span className="font-mono text-xs">₹{Number(row.original.current_bid || row.original.total_plot_price || 0).toLocaleString("en-IN")}</span>
                                         },
                                         {
                                             accessorKey: "round_adjustment",
@@ -518,7 +646,7 @@ export default function AdminPage() {
                                         {
                                             accessorKey: "winner_team_id",
                                             header: "Team",
-                                            cell: ({ row }) => <span className="text-xs font-bold uppercase">{getTeamName(row.original.winner_team_id)}</span>
+                                            cell: ({ row }) => <span className="text-xs font-bold uppercase">{row.original.winner_team_id ? getTeamName(row.original.winner_team_id) : "-"}</span>
                                         },
                                         {
                                             accessorKey: "current_bid",

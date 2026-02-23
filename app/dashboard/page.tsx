@@ -10,6 +10,7 @@ import { MapPin, Info, ArrowUpCircle, AlertTriangle, LogOut, CheckCircle2, Activ
 import CityMap from "@/components/map/CityMap";
 import NeoCard from "../../components/neo/NeoCard";
 import NeoBadge from "../../components/neo/NeoBadge";
+import NeoButton from "../../components/neo/NeoButton";
 import { motion, AnimatePresence } from "framer-motion";
 
 /** Component to dynamically fetch, parse, and animate SVG plots from /plots_svg/ */
@@ -102,6 +103,14 @@ export default function Dashboard() {
     const [currentRound, setCurrentRound] = useState(1);
     const [recentBids, setRecentBids] = useState<any[]>([]);
 
+    // Policy Screen State
+    const [activeQuestion, setActiveQuestion] = useState<string | null>(null);
+
+    // Rebid Market State
+    const [rebidPhaseActive, setRebidPhaseActive] = useState(false);
+    const [rebidOffers, setRebidOffers] = useState<any[]>([]);
+    const [markupInput, setMarkupInput] = useState<Record<number, string>>({});
+
     // 1. Check Auth & Load Initial Data
     useEffect(() => {
         const teamId = localStorage.getItem("team_id");
@@ -130,16 +139,23 @@ export default function Dashboard() {
                     const stateData = await stateRes.json();
                     setAuctionStatus(stateData.status);
                     setCurrentRound(stateData.current_round || 1);
+                    setRebidPhaseActive(stateData.rebid_phase_active || false);
+
                     if (stateData.current_plot) {
-                        // Use the plot from the /api/data/plots array if available to retain full bids/winner data
                         const fullPlot = plotsData.find((p: any) => p.number === stateData.current_plot.number);
                         setCurrentPlot(fullPlot || stateData.current_plot);
                     }
+                    if (stateData.current_question) {
+                        setActiveQuestion(stateData.current_question);
+                    }
                 }
 
-                // Load recent bids for feed persistence
                 const bidsRes = await fetch("/api/data/bids/recent");
                 if (bidsRes.ok) setRecentBids(await bidsRes.json());
+
+                const offersRes = await fetch("/api/data/rebid-offers");
+                if (offersRes.ok) setRebidOffers(await offersRes.json());
+
             } catch (e) {
                 console.error("Failed to load initial data", e);
             }
@@ -187,6 +203,9 @@ export default function Dashboard() {
                     setCurrentPlot(data.current_plot);
                 }
             }
+            if (data.current_question !== undefined) {
+                setActiveQuestion(data.current_question);
+            }
         };
 
         const handleNewBid = (data: any) => {
@@ -226,9 +245,21 @@ export default function Dashboard() {
         };
 
         const handleTeamUpdate = (data: any) => {
-            if (data.team_id === userTeam.id) {
-                setUserTeam((prev: any) => prev ? { ...prev, spent: data.spent, budget: data.budget } : null);
+            if ((data.id || data.team_id) === userTeam.id) {
+                setUserTeam((prev: any) => prev ? { ...prev, spent: data.spent, budget: data.budget, plots_won: data.plots_won } : null);
             }
+        };
+
+        const handlePlotUpdate = (data: any) => {
+            setPlots(prev => prev.map(p => p.number === data.number ? { ...p, ...data } : p));
+            if (currentPlot?.number === data.number) {
+                setCurrentPlot((prev: any) => prev ? { ...prev, ...data } : null);
+            }
+        };
+
+        const handleActiveQuestion = (data: any) => {
+            console.log("Active Question Update:", data);
+            setActiveQuestion(data.question);
         };
 
         socket.on("auction_state_update", handleStateUpdate);
@@ -237,6 +268,17 @@ export default function Dashboard() {
         socket.on("plot_adjustment", handlePlotAdjustment);
         socket.on("auction_reset", handleReset);
         socket.on("team_update", handleTeamUpdate);
+        socket.on("active_question", handleActiveQuestion);
+        socket.on("plot_update", handlePlotUpdate);
+
+        // Rebid Listeners
+        socket.on("rebid_phase_update", (data: any) => setRebidPhaseActive(data.is_active));
+        socket.on("new_rebid_offer", (offer: any) => {
+            setRebidOffers(prev => [offer, ...prev]);
+        });
+        socket.on("rebid_offer_sold", (offer: any) => {
+            setRebidOffers(prev => prev.map(o => o.id === offer.id ? offer : o));
+        });
 
         return () => {
             socket.off("auction_state_update");
@@ -245,6 +287,11 @@ export default function Dashboard() {
             socket.off("plot_adjustment");
             socket.off("auction_reset");
             socket.off("team_update");
+            socket.off("active_question");
+            socket.off("plot_update");
+            socket.off("rebid_phase_update");
+            socket.off("new_rebid_offer");
+            socket.off("rebid_offer_sold");
         };
     }, [socket, userTeam]);
 
@@ -260,7 +307,9 @@ export default function Dashboard() {
             case 1: return "Round 1 — Bidding";
             case 2: return "Round 2 — Adjustments";
             case 3: return "Round 3 — Adjustments";
-            case 4: return "Round 4 — Final Bid";
+            case 4: return "Round 4 — Final Bidding";
+            case 5: return "Round 5 — Adjustments";
+            case 6: return "Round 6 — Final Adjustments";
             default: return `Round ${round}`;
         }
     };
@@ -268,8 +317,8 @@ export default function Dashboard() {
     if (!userTeam) return null;
 
     return (
-        <NeoLayout className="h-screen overflow-hidden" containerized={false}>
-            <div className="flex flex-col h-full p-2 sm:p-4 pb-2">
+        <NeoLayout className="min-h-screen lg:h-screen lg:overflow-hidden" containerized={false}>
+            <div className="flex flex-col h-full min-h-screen lg:min-h-0 p-2 sm:p-4 pb-2">
                 {/* Header */}
                 <header className="flex flex-col md:flex-row justify-between items-center mb-3 gap-2 border-b-4 border-[var(--color-border)] pb-3 bg-[var(--color-bg)] shrink-0">
                     <div>
@@ -315,7 +364,52 @@ export default function Dashboard() {
                 </header>
 
                 {/* Main 3-Column Grid */}
-                {auctionStatus !== "running" && auctionStatus !== "selling" ? (
+                {auctionStatus === "completed" ? (
+                    <div className="flex-1 min-h-0 flex items-center justify-center overflow-auto p-4 md:p-8 relative">
+                        {/* Confetti / Background decoration could go here */}
+                        <NeoCard className="w-full max-w-4xl bg-white border-8 border-black shadow-[12px_12px_0_var(--color-primary)] p-6 lg:p-10 flex flex-col max-h-full">
+                            <h2 className="text-4xl md:text-6xl font-black uppercase text-center mb-2 tracking-tighter">
+                                FINAL <span className="text-[var(--color-primary)]">LEADERBOARD</span>
+                            </h2>
+                            <p className="text-center font-bold text-sm uppercase opacity-50 border-b-4 border-dashed border-black pb-4 mb-6">
+                                Ranked by Total Net Worth (Remaining Cash + Plot Valuation)
+                            </p>
+                            <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+                                {allTeams.map(t => {
+                                    const remainingBudget = Number(t.budget) - Number(t.spent || 0);
+                                    const teamPlots = plots.filter(p => p.winner_team_id === t.id && p.status === 'sold');
+                                    const propertyValue = teamPlots.reduce((sum, p) => sum + ((Number(p.current_bid) || Number(p.total_plot_price) || 0) + Number(p.round_adjustment || 0)), 0);
+                                    return {
+                                        ...t,
+                                        remainingBudget,
+                                        propertyValue,
+                                        plotsWon: teamPlots.length,
+                                        netWorth: remainingBudget + propertyValue
+                                    };
+                                }).sort((a, b) => b.netWorth - a.netWorth).map((team, index) => (
+                                    <div
+                                        key={team.id}
+                                        className={`flex flex-col md:flex-row items-center gap-4 justify-between border-4 border-black p-4 transition-transform ${index === 0 ? 'bg-[var(--color-success)] text-white shadow-[6px_6px_0_black] scale-[1.02] -rotate-1 z-10' : 'bg-[var(--color-surface)] shadow-[4px_4px_0_black]'}`}
+                                    >
+                                        <div className="flex items-center gap-4 w-full md:w-auto">
+                                            <div className={`shrink-0 w-12 h-12 flex items-center justify-center font-black text-2xl border-4 ${index === 0 ? 'border-white bg-white text-[var(--color-success)]' : 'border-black bg-[var(--color-bg)]'}`}>
+                                                #{index + 1}
+                                            </div>
+                                            <div className="flex flex-col flex-1">
+                                                <span className="font-black text-2xl uppercase whitespace-nowrap overflow-hidden text-ellipsis">{team.name}</span>
+                                                <span className="text-xs uppercase font-bold opacity-80 mt-1">{team.plotsWon} Plots Owned</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col items-center md:items-end w-full md:w-auto bg-black/5 p-2 border-2 border-black/10">
+                                            <span className="text-xs font-bold uppercase opacity-80">Net Worth</span>
+                                            <span className="font-mono font-black text-2xl md:text-3xl">₹ {team.netWorth.toLocaleString("en-IN")}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </NeoCard>
+                    </div>
+                ) : auctionStatus !== "running" && auctionStatus !== "selling" ? (
                     /* NOT RUNNING: Show only grayscale plot image */
                     <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
                         <NeoCard className="p-0 overflow-hidden relative bg-[var(--color-bg)] w-full max-w-3xl h-full">
@@ -326,9 +420,7 @@ export default function Dashboard() {
                                         Waiting for Auction
                                     </p>
                                     <p className="text-white/70 font-bold text-sm uppercase mt-1">
-                                        {auctionStatus === "paused" ? "Auction is paused" :
-                                            auctionStatus === "completed" ? "Auction completed" :
-                                                "Auction has not started yet"}
+                                        {auctionStatus === "paused" ? "Auction is paused" : "Auction has not started yet"}
                                     </p>
                                 </div>
                             </div>
@@ -337,13 +429,197 @@ export default function Dashboard() {
                             </div>
                         </NeoCard>
                     </div>
+                ) : ([2, 3, 5, 6].includes(currentRound) && activeQuestion) ? (
+                    /* POLICY/QUESTION SCREEN: Show Map + Question + Leaderboard */
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 flex-1 min-h-0 overflow-hidden">
+
+                        {/* LEFT: Map Panel */}
+                        <div className="lg:col-span-8 flex flex-col gap-3 min-h-0">
+                            <NeoCard className="flex flex-col shrink-0 lg:flex-none border-4 border-black bg-[var(--color-primary)] text-white shadow-[8px_8px_0_black]">
+                                <h2 className="text-sm font-black uppercase mb-2 opacity-80 flex items-center gap-2">
+                                    <AlertTriangle size={16} /> Active Policy (Round {currentRound})
+                                </h2>
+                                <p className="font-extrabold text-lg sm:text-2xl leading-snug">
+                                    {activeQuestion}
+                                </p>
+                            </NeoCard>
+
+                            <NeoCard className="flex-1 min-h-[300px] lg:min-h-0 p-0 overflow-hidden relative bg-[var(--color-bg)]">
+                                <div className="absolute inset-0 p-2 sm:p-4">
+                                    <CityMap currentPlotNumber={undefined} plots={plots} allTeams={allTeams} />
+                                </div>
+                            </NeoCard>
+                        </div>
+
+                        {/* RIGHT: Team Leaderboard & Status */}
+                        <div className="lg:col-span-4 min-h-[300px] lg:min-h-0 overflow-hidden">
+                            <NeoCard className="h-full overflow-hidden flex flex-col bg-[var(--color-bg)]">
+                                <h3 className="text-lg font-black uppercase mb-4 flex items-center gap-2">
+                                    <Activity size={20} /> Team Overview
+                                </h3>
+                                <div className="space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
+                                    {[...allTeams].sort((a, b) => b.plots_won - a.plots_won || parseFloat(b.spent || 0) - parseFloat(a.spent || 0)).map((team, idx) => {
+                                        const remaining = Number(team.budget) - Number(team.spent || 0);
+                                        return (
+                                            <div key={team.id} className="flex flex-col bg-[var(--color-surface)] p-2 neo-border">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="font-black text-sm uppercase">#{idx + 1} {team.name}</span>
+                                                    <span className="font-bold text-xs text-[var(--color-success)] tracking-wider">★ {team.plots_won} WON</span>
+                                                </div>
+                                                <div className="flex justify-between items-center pt-1 border-t-2 border-[var(--color-border)]">
+                                                    <span className="text-xs font-bold opacity-60 uppercase">Funds</span>
+                                                    <span className="font-mono text-sm font-black">₹{remaining.toLocaleString("en-IN")}</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </NeoCard>
+                        </div>
+                    </div>
+                ) : (currentRound === 4 && rebidPhaseActive) ? (
+                    /* REBID MARKETPLACE SCREEN */
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 flex-1 min-h-0 overflow-hidden">
+
+                        {/* LEFT: Portfolio (Sell) */}
+                        <div className="lg:col-span-6 flex flex-col gap-3 min-h-0">
+                            <NeoCard className="flex flex-col h-full bg-[var(--color-bg)]">
+                                <h2 className="text-lg font-black uppercase mb-3 flex items-center gap-2 text-[var(--color-primary)]">
+                                    <MapPin size={20} /> My Portfolio
+                                </h2>
+                                <div className="overflow-y-auto pr-1 flex-1 space-y-2">
+                                    {plots.filter(p => p.winner_team_id === userTeam.id).length === 0 && (
+                                        <p className="text-sm font-bold opacity-50 p-4 text-center">You don't own any plots to sell.</p>
+                                    )}
+                                    {plots.filter(p => p.winner_team_id === userTeam.id).map(plot => {
+                                        const currentValue = (parseFloat(plot.current_bid || plot.total_plot_price || 0) + parseFloat(plot.round_adjustment || 0));
+                                        const maxAllowed = currentValue * 1.07;
+                                        const activeOffer = rebidOffers.find(o => o.plot_number === plot.number && o.status === "active");
+
+                                        return (
+                                            <div key={plot.number} className="neo-border p-3 bg-[var(--color-surface)]">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <span className="font-black text-sm uppercase">Plot #{plot.number}</span>
+                                                    <span className="font-bold text-xs opacity-70">Base: ₹{currentValue.toLocaleString("en-IN")}</span>
+                                                </div>
+
+                                                {activeOffer ? (
+                                                    <div className="bg-[var(--color-warning)] p-2 neo-border flex justify-between items-center text-black">
+                                                        <span className="text-xs font-bold uppercase">Listed for ₹{activeOffer.asking_price.toLocaleString("en-IN")}</span>
+                                                        <span className="text-[10px] font-black animate-pulse">WAITING FOR BUYER...</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="number"
+                                                            placeholder={`Max ₹${Math.floor(maxAllowed)}`}
+                                                            className="neo-input flex-1 text-sm py-1 px-2 min-w-0 bg-[var(--color-bg)]"
+                                                            value={markupInput[plot.number] || ""}
+                                                            onChange={(e) => setMarkupInput(prev => ({ ...prev, [plot.number]: e.target.value }))}
+                                                            max={maxAllowed}
+                                                        />
+                                                        <NeoButton
+                                                            variant="primary"
+                                                            className="text-xs py-1 px-3"
+                                                            onClick={async () => {
+                                                                const price = parseFloat(markupInput[plot.number]);
+                                                                if (!price || price > maxAllowed || price < currentValue) return alert(`Invalid price! Must be between ₹${currentValue} and ₹${maxAllowed.toFixed(0)}`);
+
+                                                                try {
+                                                                    const res = await fetch("/api/rebid/offer", {
+                                                                        method: "POST",
+                                                                        headers: { "Content-Type": "application/json" },
+                                                                        body: JSON.stringify({
+                                                                            team_id: userTeam.id,
+                                                                            plot_number: plot.number,
+                                                                            asking_price: price
+                                                                        })
+                                                                    });
+                                                                    if (!res.ok) alert((await res.json()).detail);
+                                                                    else setMarkupInput(prev => ({ ...prev, [plot.number]: "" }));
+                                                                } catch (e) { console.error(e); }
+                                                            }}
+                                                        >
+                                                            SELL
+                                                        </NeoButton>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </NeoCard>
+                        </div>
+
+                        {/* RIGHT: Open Market (Buy) */}
+                        <div className="lg:col-span-6 flex flex-col gap-3 min-h-0">
+                            <NeoCard className="flex flex-col h-full bg-[var(--color-bg)]">
+                                <h2 className="text-lg font-black uppercase mb-3 flex items-center gap-2 text-[var(--color-success)]">
+                                    <Activity size={20} /> Open Market
+                                </h2>
+                                <div className="space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
+                                    {rebidOffers.filter(o => o.status === "active").length === 0 && (
+                                        <p className="text-sm font-bold opacity-50 p-4 text-center">No plots currently listed for sale.</p>
+                                    )}
+                                    {rebidOffers.filter(o => o.status === "active").map(offer => {
+                                        const isMine = offer.offering_team_id === userTeam.id;
+                                        const remaining = Number(userTeam.budget) - Number(userTeam.spent || 0);
+                                        const canAfford = remaining >= offer.asking_price;
+
+                                        return (
+                                            <div key={offer.id} className="flex flex-col bg-[var(--color-surface)] p-3 neo-border">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <span className="font-black text-sm uppercase flex items-center gap-2">
+                                                        <MapPin size={14} /> Plot #{offer.plot_number}
+                                                    </span>
+                                                    <span className="font-black text-sm text-[var(--color-success)] tracking-wider">
+                                                        ₹{offer.asking_price.toLocaleString("en-IN")}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between items-center pt-2 border-t-2 border-[var(--color-border)]">
+                                                    <span className="text-[10px] font-bold opacity-60 uppercase">
+                                                        Seller: {getTeamName(offer.offering_team_id)}
+                                                    </span>
+                                                    {isMine ? (
+                                                        <span className="text-[10px] font-black text-[var(--color-warning)] p-1 bg-[var(--color-warning)]/20 border-2 border-[var(--color-warning)] whitespace-nowrap">YOUR LISTING</span>
+                                                    ) : (
+                                                        <NeoButton
+                                                            variant="success"
+                                                            className="text-xs py-1 px-4 border-2"
+                                                            disabled={!canAfford}
+                                                            onClick={async () => {
+                                                                if (!confirm(`Buy Plot #${offer.plot_number} for ₹${offer.asking_price}?`)) return;
+                                                                try {
+                                                                    const res = await fetch("/api/rebid/buy", {
+                                                                        method: "POST",
+                                                                        headers: { "Content-Type": "application/json" },
+                                                                        body: JSON.stringify({
+                                                                            team_id: userTeam.id,
+                                                                            offer_id: offer.id
+                                                                        })
+                                                                    });
+                                                                    if (!res.ok) alert((await res.json()).detail);
+                                                                } catch (e) { console.error(e); }
+                                                            }}
+                                                        >
+                                                            {canAfford ? "BUY" : "NO FUNDS"}
+                                                        </NeoButton>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </NeoCard>
+                        </div>
+                    </div>
                 ) : (
-                    /* RUNNING: Show 3-column layout */
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden">
+                    /* RUNNING (Standard): Show 3-column layout */
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 flex-1 lg:min-h-0 lg:overflow-hidden">
 
                         {/* LEFT: Plot Image */}
-                        <div className="lg:col-span-5 min-h-[200px] sm:min-h-[300px] lg:min-h-0 overflow-hidden">
-                            <NeoCard className="p-0 overflow-hidden h-full relative bg-[var(--color-bg)]">
+                        <div className="lg:col-span-5 min-h-[200px] sm:min-h-[350px] lg:min-h-0 lg:overflow-hidden flex flex-col">
+                            <NeoCard className="p-0 flex-1 overflow-hidden relative bg-[var(--color-bg)]">
                                 <div className="absolute top-3 left-3 z-10">
                                     <NeoBadge variant="neutral">
                                         <MapPin size={14} className="mr-1" />
@@ -387,7 +663,7 @@ export default function Dashboard() {
                                                 </AnimatePresence>
                                             </>
                                         ) : (
-                                            <div className="text-center text-[var(--color-text)] opacity-40">
+                                            <div className="text-center text-[var(--color-text)] opacity-40 py-10">
                                                 <MapPin size={64} className="mx-auto mb-2 opacity-30" />
                                                 <p className="font-bold uppercase text-sm">Waiting for plot...</p>
                                             </div>
@@ -398,7 +674,7 @@ export default function Dashboard() {
                         </div>
 
                         {/* CENTER: Plot Details + Bid Input */}
-                        <div className="lg:col-span-4 flex flex-col gap-3 min-h-0 lg:overflow-y-auto">
+                        <div className="lg:col-span-4 flex flex-col gap-3 lg:min-h-0 lg:overflow-y-auto">
                             {/* Plot Details Card */}
                             {currentPlot ? (
                                 <NeoCard>
@@ -419,8 +695,8 @@ export default function Dashboard() {
                                             <p className="font-black text-lg">{currentPlot.actual_area?.toLocaleString() || "0"} sq ft</p>
                                         </div>
                                         <div className="neo-border p-3 bg-[var(--color-surface)]">
-                                            <p className="text-xs font-bold uppercase text-[var(--color-text)] opacity-50">Total Plot Price</p>
-                                            <p className="font-black text-lg">₹ {currentPlot.total_plot_price?.toLocaleString() || "0"}</p>
+                                            <p className="text-xs font-bold uppercase text-[var(--color-text)] opacity-50">Current Price</p>
+                                            <p className="font-black text-lg">₹ {(Number(currentPlot.current_bid || currentPlot.total_plot_price || 0) + Number(currentPlot.round_adjustment || 0)).toLocaleString("en-IN")}</p>
                                         </div>
                                         {Number(currentPlot.round_adjustment) !== 0 && (
                                             <div className={`neo-border p-3 col-span-2 ${currentPlot.round_adjustment > 0 ? "bg-[var(--color-success)]/20" : "bg-[var(--color-danger)]/20"}`}>
@@ -451,11 +727,11 @@ export default function Dashboard() {
                                 allTeams={allTeams}
                                 currentRound={currentRound}
                                 auctionStatus={auctionStatus}
-                                className="flex-1"
+                                className="shrink-0"
                             />
 
                             {/* Sold Plots Summary - visible during adjustment rounds */}
-                            {(currentRound === 2 || currentRound === 3) && (
+                            {(currentRound === 2 || currentRound === 3 || currentRound === 5 || currentRound === 6) && (
                                 <NeoCard className="shrink-0">
                                     <h3 className="text-sm font-black uppercase mb-2 flex items-center gap-2">
                                         🏆 Sold Plots
@@ -489,8 +765,8 @@ export default function Dashboard() {
                         </div>
 
                         {/* RIGHT: Live Feed */}
-                        <div className="lg:col-span-3 min-h-[200px] lg:min-h-0 overflow-hidden">
-                            <NeoCard className="h-full overflow-hidden flex flex-col">
+                        <div className="lg:col-span-3 min-h-[300px] lg:min-h-0 lg:overflow-hidden flex flex-col">
+                            <NeoCard className="flex-1 overflow-hidden flex flex-col">
                                 <h3 className="text-lg font-black uppercase mb-4 flex items-center gap-2">
                                     <Activity size={20} /> Feed
                                 </h3>
@@ -511,7 +787,7 @@ export default function Dashboard() {
                                             </motion.div>
                                         ))}
                                     {recentBids.filter(b => b.plot_number === currentPlot?.number).length === 0 && (
-                                        <p className="text-[var(--color-text)] opacity-50 italic text-sm border-2 border-dashed border-[var(--color-border)] opacity-30 p-4 text-center">
+                                        <p className="text-[var(--color-text)] opacity-50 italic text-sm border-2 border-dashed border-[var(--color-border)] p-4 text-center">
                                             No bids yet...
                                         </p>
                                     )}

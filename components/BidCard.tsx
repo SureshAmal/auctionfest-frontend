@@ -54,7 +54,7 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
         if (!socket || !currentPlot || !userTeam) return;
 
         // Prevent bids during adjustment rounds
-        if (currentRound === 2 || currentRound === 3) {
+        if (currentRound === 2 || currentRound === 3 || currentRound === 5 || currentRound === 6) {
             setError("Bidding not allowed during adjustment rounds");
             return;
         }
@@ -182,9 +182,10 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
         );
     }
 
+    const effectivePrice = (Number(currentPlot.current_bid) || Number(currentPlot.total_plot_price) || 0) + (Number(currentPlot.round_adjustment) || 0);
     const minBid = currentPlot.current_bid
-        ? Number(currentPlot.current_bid) + 100
-        : (Number(currentPlot.total_plot_price) || 1000);
+        ? effectivePrice + 100
+        : (effectivePrice || 1000);
     /** Convert number to Indian words (Crore, Lakh, Thousand). */
     const numberToIndianWords = (num: number): string => {
         if (!num || num <= 0) return "";
@@ -224,17 +225,17 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
                     <Gavel size={20} /> Place Bid
                 </h3>
                 {currentRound === 4 && (
-                    <NeoBadge variant="danger">Final Round</NeoBadge>
+                    <NeoBadge variant="danger">Final Bidding</NeoBadge>
                 )}
             </div>
 
             <div className="space-y-4">
-                {/* Current Highest */}
+                {/* Current Price / Highest Bid */}
                 <div className="neo-border p-3 bg-[var(--color-surface)]">
-                    <p className="text-xs font-bold uppercase mb-1">Current Highest Bid</p>
+                    <p className="text-xs font-bold uppercase mb-1">{currentPlot.current_bid ? "Current Highest Bid" : "Current Price"}</p>
                     <div className="flex items-baseline justify-between">
                         <span className="text-3xl font-black">
-                            ₹ {currentPlot.current_bid ? Number(currentPlot.current_bid).toLocaleString("en-IN") : "0"}
+                            ₹ {effectivePrice.toLocaleString("en-IN")}
                         </span>
                         {currentPlot.winner_team_id && (
                             <span className="text-xs font-bold uppercase bg-black text-white px-2 py-0.5">
