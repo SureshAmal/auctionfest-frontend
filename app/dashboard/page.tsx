@@ -333,7 +333,7 @@ export default function Dashboard() {
                                 </div>
                             </div>
                             <div className="absolute inset-0 pointer-events-none p-4 opacity-50">
-                                <CityMap />
+                                <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} />
                             </div>
                         </NeoCard>
                     </div>

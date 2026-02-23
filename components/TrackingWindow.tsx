@@ -4,6 +4,8 @@ import { Activity, X, Gavel, DollarSign } from "lucide-react";
 import NeoBadge from "./neo/NeoBadge";
 import NeoButton from "./neo/NeoButton";
 import CityMap from "@/components/map/CityMap";
+import NeoTable from "@/components/neo/NeoTable";
+import { ColumnDef } from "@tanstack/react-table";
 
 interface TrackingWindowProps {
     currentPlot: any;
@@ -16,22 +18,11 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
     const [isOpen, setIsOpen] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [scale, setScale] = useState(1);
-    const [sortKey, setSortKey] = useState<string>("price");
-    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
     const containerRef = useRef(null);
-
-    const handleSort = (key: string) => {
-        if (sortKey === key) {
-            setSortDirection(prev => prev === "asc" ? "desc" : "asc");
-        } else {
-            setSortKey(key);
-            setSortDirection("desc");
-        }
-    };
 
     // Calculate Sold Plots Ledger
     const soldPlots = useMemo(() => {
-        const sorted = plots
+        return plots
             .filter(p => p.status?.toLowerCase() === 'sold' && p.winner_team_id)
             .map(p => {
                 const team = allTeams.find(t => t.id === p.winner_team_id);
@@ -41,16 +32,7 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                     price: Number(p.current_bid) || 0
                 };
             });
-
-        sorted.sort((a, b) => {
-            const modifier = sortDirection === "asc" ? 1 : -1;
-            if (sortKey === "plotNumber") return (a.plotNumber - b.plotNumber) * modifier;
-            if (sortKey === "teamName") return a.teamName.localeCompare(b.teamName) * modifier;
-            if (sortKey === "price") return (a.price - b.price) * modifier;
-            return 0;
-        });
-        return sorted;
-    }, [plots, allTeams, sortKey, sortDirection]);
+    }, [plots, allTeams]);
 
     const totalRevenue = soldPlots.reduce((sum, p) => sum + p.price, 0);
 
@@ -105,7 +87,7 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                                     }}
                                 >
                                     <div className="absolute inset-0 w-full h-full object-contain group-hover:scale-[1.02] transition-transform pointer-events-none p-4">
-                                        <CityMap currentPlotNumber={currentPlot?.number} />
+                                        <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} />
                                     </div>
                                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/20 transition-opacity pointer-events-none">
                                         <span className="bg-black text-white px-2 py-1 text-xs font-bold uppercase">Click to Zoom</span>
@@ -132,36 +114,38 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                             </div>
 
                             {/* 3. Scrollable List */}
-                            <div className="overflow-y-auto p-4 bg-[var(--color-bg)] relative flex-1">
+                            <div className="min-h-0 flex-1 relative bg-[var(--color-bg)] w-full overflow-y-auto">
                                 {soldPlots.length === 0 ? (
                                     <div className="text-center py-10 text-[var(--color-text)] opacity-40 font-bold uppercase border-2 border-dashed border-[var(--color-border)] opacity-30">
                                         No plots sold yet.
                                     </div>
                                 ) : (
-                                    <table className="w-full text-left border-separate border-spacing-0 border-4 border-black border-b-0 border-r-0">
-                                        <thead className="text-[var(--color-text)]">
-                                            <tr>
-                                                <th className="sticky top-0 z-30 bg-[var(--color-surface)] p-2 font-black uppercase border-r-4 border-b-4 border-black cursor-pointer hover:bg-[#ffe55c] active:bg-[#ffed99] transition-colors" onClick={() => handleSort("plotNumber")}>
-                                                    <div className="flex items-center gap-1">Plot # {sortKey === "plotNumber" && <span className="text-[10px]">{sortDirection === "asc" ? "▲" : "▼"}</span>}</div>
-                                                </th>
-                                                <th className="sticky top-0 z-30 bg-[var(--color-surface)] p-2 font-black uppercase border-r-4 border-b-4 border-black cursor-pointer hover:bg-[#ffe55c] active:bg-[#ffed99] transition-colors" onClick={() => handleSort("teamName")}>
-                                                    <div className="flex items-center gap-1">Team {sortKey === "teamName" && <span className="text-[10px]">{sortDirection === "asc" ? "▲" : "▼"}</span>}</div>
-                                                </th>
-                                                <th className="sticky top-0 z-30 bg-[var(--color-surface)] p-2 font-black uppercase border-b-4 border-black cursor-pointer hover:bg-[#ffe55c] active:bg-[#ffed99] transition-colors" onClick={() => handleSort("price")}>
-                                                    <div className="flex items-center justify-end gap-1">Price {sortKey === "price" && <span className="text-[10px]">{sortDirection === "asc" ? "▲" : "▼"}</span>}</div>
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-[var(--color-bg)] [&>tr>td]:border-b-4 [&>tr>td]:border-r-4 [&>tr>td]:border-black [&>tr>td:last-child]:border-r-0">
-                                            {soldPlots.map((plot, i) => (
-                                                <tr key={i} className="hover:bg-black/5 transition-colors odd:bg-[var(--color-bg)] even:bg-[var(--color-bg)] font-bold text-sm">
-                                                    <td className="p-2 font-black">#{plot.plotNumber}</td>
-                                                    <td className="p-2 text-[var(--color-primary)] truncate max-w-[100px]">{plot.teamName}</td>
-                                                    <td className="p-2 text-right font-mono">₹ {plot.price.toLocaleString("en-IN")}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                    (() => {
+                                        const trackingColumns: ColumnDef<any>[] = [
+                                            {
+                                                accessorKey: "plotNumber",
+                                                header: "Plot #",
+                                                cell: ({ row }) => <div className="font-black text-center">#{row.original.plotNumber}</div>
+                                            },
+                                            {
+                                                accessorKey: "teamName",
+                                                header: () => <div className="text-center">Team</div>,
+                                                cell: ({ row }) => <div className="text-[var(--color-primary)] truncate max-w-[150px] text-center w-full">{row.original.teamName}</div>
+                                            },
+                                            {
+                                                accessorKey: "price",
+                                                header: () => <div className="text-center">Price</div>,
+                                                cell: ({ row }) => <div className="text-right font-mono w-full pr-4">₹ {row.original.price.toLocaleString("en-IN")}</div>
+                                            }
+                                        ];
+
+                                        return (
+                                            <NeoTable
+                                                columns={trackingColumns}
+                                                data={soldPlots}
+                                            />
+                                        );
+                                    })()
                                 )}
                             </div>
                         </motion.div>
@@ -203,7 +187,7 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                                 dragMomentum={false}
                                 className="w-[80vw] h-[80vh] shadow-2xl bg-white border-4 border-black"
                             >
-                                <CityMap currentPlotNumber={currentPlot?.number} />
+                                <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} />
                             </motion.div>
                         </motion.div>
                     </div>

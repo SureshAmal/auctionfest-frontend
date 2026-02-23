@@ -1,19 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AlertCircle, Clock, Save, X, Search, ChevronRight, Menu, Users, RotateCcw, Edit, Gavel, FileOutput, MapPin, Undo2, Play, SkipForward, Pause, RefreshCw, Trophy, ShieldAlert, Settings, TrendingUp, TrendingDown, AlertTriangle, Rocket } from "lucide-react";
+import NeoCard from "@/components/neo/NeoCard";
+import NeoButton from "@/components/neo/NeoButton";
+import NeoInput from "@/components/neo/NeoInput";
+import NeoBadge from "@/components/neo/NeoBadge";
+import NeoTable from "@/components/neo/NeoTable";
+import CityMap from "@/components/map/CityMap";
+import { ColumnDef } from "@tanstack/react-table";
 import { useSocket } from "../../context/socket-context";
 import NeoLayout from "../../components/neo/NeoLayout";
-import NeoCard from "../../components/neo/NeoCard";
-import NeoButton from "../../components/neo/NeoButton";
-import NeoTable from "../../components/neo/NeoTable";
-import NeoBadge from "../../components/neo/NeoBadge";
-import NeoInput from "../../components/neo/NeoInput";
-import {
-    Play, SkipForward, Pause, RefreshCw, Trophy,
-    ShieldAlert, Users, Settings, TrendingUp, TrendingDown,
-    Clock, Menu, X, MapPin, AlertTriangle, Rocket
-} from "lucide-react";
-import CityMap from "@/components/map/CityMap";
+
+interface Plot {
+    id: number;
+    number: number;
+    plot_type: string;
+    actual_area: number;
+    base_price: number;
+    round_adjustment: number;
+    status: string;
+    winner_team_id: string;
+    current_bid: number;
+}
+
 
 /**
  * Admin page for controlling the auction.
@@ -473,8 +483,6 @@ export default function AdminPage() {
                                 ))}
                             </div>
                         </NeoCard>
-
-
                     </div>
 
                     {/* Right: Plot Status Table - full remaining space */}
@@ -483,67 +491,46 @@ export default function AdminPage() {
                             <h3 className="text-sm font-black uppercase mb-2">Plot Status</h3>
                             <div className="flex-1 min-h-0 overflow-y-auto">
                                 {(() => {
-                                    const handleSort = (key: string) => {
-                                        if (sortKey === key) {
-                                            setSortDirection(prev => prev === "asc" ? "desc" : "asc");
-                                        } else {
-                                            setSortKey(key);
-                                            setSortDirection(key === "number" ? "asc" : "desc");
-                                        }
-                                    };
-
-                                    const sortedPlots = [...plots].sort((a, b) => {
-                                        const modifier = sortDirection === "asc" ? 1 : -1;
-                                        if (sortKey === "number") return (a.number - b.number) * modifier;
-                                        if (sortKey === "plot_type") return (a.plot_type || "").localeCompare(b.plot_type || "") * modifier;
-                                        if (sortKey === "actual_area") return ((a.actual_area || 0) - (b.actual_area || 0)) * modifier;
-                                        if (sortKey === "base_price") return ((a.base_price || 0) - (b.base_price || 0)) * modifier;
-                                        if (sortKey === "round_adjustment") return ((a.round_adjustment || 0) - (b.round_adjustment || 0)) * modifier;
-                                        if (sortKey === "status") return (a.status || "").localeCompare(b.status || "") * modifier;
-                                        if (sortKey === "winner_team") return getTeamName(a.winner_team_id).localeCompare(getTeamName(b.winner_team_id)) * modifier;
-                                        if (sortKey === "current_bid") return ((Number(a.current_bid) || 0) - (Number(b.current_bid) || 0)) * modifier;
-                                        return 0;
-                                    });
-
-                                    const tableHeaders = [
-                                        { key: "number", label: "#" },
-                                        { key: "plot_type", label: "Type" },
-                                        { key: "actual_area", label: "Area" },
-                                        { key: "base_price", label: "Base" },
-                                        { key: "round_adjustment", label: "Adj." },
-                                        { key: "status", label: "Status" },
-                                        { key: "winner_team", label: "Team" },
-                                        { key: "current_bid", label: "Bid" },
+                                    const tableColumns: ColumnDef<Plot>[] = [
+                                        { accessorKey: "number", header: "#", cell: ({ row }) => <span className="font-bold bg-[var(--color-bg)] text-sm">{row.original.number}</span> },
+                                        { accessorKey: "plot_type", header: "Type", cell: ({ row }) => <span className="text-xs font-bold uppercase">{row.original.plot_type || "-"}</span> },
+                                        { accessorKey: "actual_area", header: "Area", cell: ({ row }) => <span className="font-mono text-xs">{row.original.actual_area?.toLocaleString() || "-"}</span> },
+                                        {
+                                            accessorKey: "base_price",
+                                            header: "Base",
+                                            cell: ({ row }) => <span className="font-mono text-xs">₹{row.original.base_price?.toLocaleString() || "-"}</span>
+                                        },
+                                        {
+                                            accessorKey: "round_adjustment",
+                                            header: "Adj.",
+                                            cell: ({ row }) => {
+                                                const adj = row.original.round_adjustment || 0;
+                                                return <span className={`font-mono text-xs font-bold ${adj > 0 ? "text-[var(--color-success)]" : adj < 0 ? "text-[var(--color-danger)]" : ""}`}>
+                                                    {adj !== 0 ? `${adj > 0 ? "+" : ""}₹${adj.toLocaleString("en-IN")}` : "-"}
+                                                </span>
+                                            }
+                                        },
+                                        {
+                                            accessorKey: "status",
+                                            header: "Status",
+                                            cell: ({ row }) => <NeoBadge variant={row.original.status === "sold" ? "success" : row.original.status === "active" ? "info" : "neutral"}>{row.original.status}</NeoBadge>
+                                        },
+                                        {
+                                            accessorKey: "winner_team_id",
+                                            header: "Team",
+                                            cell: ({ row }) => <span className="text-xs font-bold uppercase">{getTeamName(row.original.winner_team_id)}</span>
+                                        },
+                                        {
+                                            accessorKey: "current_bid",
+                                            header: "Bid",
+                                            cell: ({ row }) => <span className="font-mono font-bold text-xs">{row.original.current_bid ? `₹${Number(row.original.current_bid).toLocaleString("en-IN")}` : "-"}</span>
+                                        },
                                     ];
 
                                     return (
                                         <NeoTable
-                                            headers={tableHeaders}
-                                            data={sortedPlots}
-                                            onSort={handleSort}
-                                            sortKey={sortKey}
-                                            sortDirection={sortDirection}
-                                            renderRow={(p) => (
-                                                <>
-                                                    <td className="px-2 py-1.5 font-bold bg-[var(--color-bg)] text-sm">{p.number}</td>
-                                                    <td className="px-2 py-1.5 text-xs font-bold uppercase">{p.plot_type || "-"}</td>
-                                                    <td className="px-2 py-1.5 font-mono text-xs">{p.actual_area?.toLocaleString() || "-"}</td>
-                                                    <td className="px-2 py-1.5 font-mono text-xs">₹{p.base_price?.toLocaleString() || "-"}</td>
-                                                    <td className={`px-2 py-1.5 font-mono text-xs font-bold ${(p.round_adjustment || 0) > 0 ? "text-[var(--color-success)]" : (p.round_adjustment || 0) < 0 ? "text-[var(--color-danger)]" : ""}`}>
-                                                        {Number(p.round_adjustment) !== 0 ? `${p.round_adjustment > 0 ? "+" : ""}₹${Number(p.round_adjustment).toLocaleString("en-IN")}` : "-"}
-                                                    </td>
-                                                    <td className="px-2 py-1.5">
-                                                        <NeoBadge variant={
-                                                            p.status === "sold" ? "success" :
-                                                                p.status === "active" ? "info" : "neutral"
-                                                        }>
-                                                            {p.status}
-                                                        </NeoBadge>
-                                                    </td>
-                                                    <td className="px-2 py-1.5 text-xs font-bold uppercase">{getTeamName(p.winner_team_id)}</td>
-                                                    <td className="px-2 py-1.5 font-mono font-bold text-xs">{p.current_bid ? `₹${Number(p.current_bid).toLocaleString("en-IN")}` : "-"}</td>
-                                                </>
-                                            )}
+                                            columns={tableColumns}
+                                            data={plots}
                                         />
                                     );
                                 })()}
@@ -561,58 +548,59 @@ export default function AdminPage() {
                 </button>
 
                 {/* Mobile Sidebar Overlay */}
-                {isSidebarOpen && (
-                    <div className="fixed inset-0 z-50 flex">
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />
-                        <div className="relative ml-auto w-[85%] max-w-sm h-full bg-[var(--color-bg)] border-l-4 border-[var(--color-border)] shadow-[-8px_0_0_rgba(0,0,0,0.5)] flex flex-col pointer-events-auto overflow-hidden animate-in slide-in-from-right duration-200">
-                            <div className="flex justify-between items-center p-4 border-b-4 border-[var(--color-border)] bg-[var(--color-surface)] shrink-0">
-                                <h2 className="font-black text-xl uppercase">Extra Info</h2>
-                                <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-white border-2 border-transparent hover:border-black transition-colors rounded-sm">
-                                    <X size={24} />
-                                </button>
-                            </div>
-                            <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-20">
-                                {/* Current Plot View - Clickable */}
-                                <NeoCard className="p-0 overflow-hidden relative bg-[var(--color-bg)] cursor-pointer hover:shadow-none translate-x-[2px] translate-y-[2px] transition-all hover:-translate-x-0 hover:-translate-y-0"
-                                    onClick={() => setIsImageModalOpen(true)}>
-                                    <h3 className="text-sm font-black uppercase m-2 flex items-center gap-2">
-                                        <MapPin size={16} className="text-[var(--color-secondary)]" /> Current Plot Mode
-                                    </h3>
-                                    <div className="relative w-full aspect-square bg-gray-100 border-t-2 border-[var(--color-border)]">
-                                        <div className="absolute inset-0 pointer-events-none p-2 w-full h-full opacity-70">
-                                            <CityMap currentPlotNumber={currentPlot?.number} />
-                                        </div>
-                                        <div className="absolute top-2 right-2">
-                                            <NeoBadge variant="info">Plot #{currentPlot?.number || "-"}</NeoBadge>
-                                        </div>
-                                        <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                                            <div className="bg-white font-black text-xs uppercase px-2 py-1 border-2 border-black">Click Fullscreen</div>
-                                        </div>
-                                    </div>
-                                </NeoCard>
-
-                                {/* Header-style connection count for sidebar */}
-                                <div className="flex items-center gap-2 neo-border px-4 py-2 bg-[var(--color-surface)]">
-                                    <Users size={20} className="text-[var(--color-secondary)]" />
-                                    <div className="flex-1">
-                                        <span className="font-black text-xl leading-none block">{connectedCount}</span>
-                                        <span className="font-bold uppercase text-[10px] block opacity-70">Online Users</span>
-                                    </div>
+                {
+                    isSidebarOpen && (
+                        <div className="fixed inset-0 z-50 flex">
+                            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />
+                            <div className="relative ml-auto w-[85%] max-w-sm h-full bg-[var(--color-bg)] border-l-4 border-[var(--color-border)] shadow-[-8px_0_0_rgba(0,0,0,0.5)] flex flex-col pointer-events-auto overflow-hidden animate-in slide-in-from-right duration-200">
+                                <div className="flex justify-between items-center p-4 border-b-4 border-[var(--color-border)] bg-[var(--color-surface)] shrink-0">
+                                    <h2 className="font-black text-xl uppercase">Extra Info</h2>
+                                    <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-white border-2 border-transparent hover:border-black transition-colors rounded-sm">
+                                        <X size={24} />
+                                    </button>
                                 </div>
-                                <div className="space-y-1">
-                                    {connectedTeams.length > 0 ? connectedTeams.map((name, i) => (
-                                        <div key={i} className="flex items-center gap-2 bg-[var(--color-bg)] p-1.5 border border-[var(--color-border)] font-bold text-xs">
-                                            <span className="w-2 h-2 bg-[var(--color-success)] border border-[var(--color-border)]" />
-                                            <span>{name}</span>
+                                <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-20">
+                                    {/* Current Plot View - Clickable */}
+                                    <NeoCard className="p-0 overflow-hidden relative bg-[var(--color-bg)] cursor-pointer hover:shadow-none translate-x-[2px] translate-y-[2px] transition-all hover:-translate-x-0 hover:-translate-y-0"
+                                        onClick={() => setIsImageModalOpen(true)}>
+                                        <h3 className="text-sm font-black uppercase m-2 flex items-center gap-2">
+                                            <MapPin size={16} className="text-[var(--color-secondary)]" /> Current Plot Mode
+                                        </h3>
+                                        <div className="relative w-full aspect-square bg-gray-100 border-t-2 border-[var(--color-border)]">
+                                            <div className="absolute inset-0 pointer-events-none p-2 w-full h-full opacity-70">
+                                                <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={teams} />
+                                            </div>
+                                            <div className="absolute top-2 right-2">
+                                                <NeoBadge variant="info">Plot #{currentPlot?.number || "-"}</NeoBadge>
+                                            </div>
+                                            <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                                <div className="bg-white font-black text-xs uppercase px-2 py-1 border-2 border-black">Click Fullscreen</div>
+                                            </div>
                                         </div>
-                                    )) : (
-                                        <p className="text-[var(--color-text)] opacity-50 text-xs italic border border-dashed border-[var(--color-border)] p-2">No one connected</p>
-                                    )}
+                                    </NeoCard>
+
+                                    {/* Header-style connection count for sidebar */}
+                                    <div className="flex items-center gap-2 neo-border px-4 py-2 bg-[var(--color-surface)]">
+                                        <Users size={20} className="text-[var(--color-secondary)]" />
+                                        <div className="flex-1">
+                                            <span className="font-black text-xl leading-none block">{connectedCount}</span>
+                                            <span className="font-bold uppercase text-[10px] block opacity-70">Online Users</span>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        {connectedTeams.length > 0 ? connectedTeams.map((name, i) => (
+                                            <div key={i} className="flex items-center gap-2 bg-[var(--color-bg)] p-1.5 border border-[var(--color-border)] font-bold text-xs">
+                                                <span className="w-2 h-2 bg-[var(--color-success)] border border-[var(--color-border)]" />
+                                                <span>{name}</span>
+                                            </div>
+                                        )) : (
+                                            <p className="text-[var(--color-text)] opacity-50 text-xs italic border border-dashed border-[var(--color-border)] p-2">No one connected</p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
                 {/* Full Screen Image Modal */}
                 {isImageModalOpen && (
@@ -628,12 +616,12 @@ export default function AdminPage() {
                                 </button>
                             </div>
                             <div className="flex-1 bg-white border-2 border-[var(--color-border)] relative overflow-hidden flex items-center justify-center p-4">
-                                <CityMap currentPlotNumber={currentPlot?.number} />
+                                <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={teams} />
                             </div>
                         </div>
                     </div>
                 )}
             </div>
-        </NeoLayout >
+        </NeoLayout>
     );
 }

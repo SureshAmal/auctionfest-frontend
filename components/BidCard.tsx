@@ -183,8 +183,8 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
     }
 
     const minBid = currentPlot.current_bid
-        ? currentPlot.current_bid + 100
-        : (currentPlot.total_plot_price || 1000);
+        ? Number(currentPlot.current_bid) + 100
+        : (Number(currentPlot.total_plot_price) || 1000);
     /** Convert number to Indian words (Crore, Lakh, Thousand). */
     const numberToIndianWords = (num: number): string => {
         if (!num || num <= 0) return "";
