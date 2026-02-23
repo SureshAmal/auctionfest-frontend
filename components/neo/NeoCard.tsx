@@ -7,11 +7,13 @@ interface NeoCardProps {
     children: React.ReactNode;
     className?: string;
     hoverEffect?: boolean;
+    onClick?: () => void;
 }
 
-export default function NeoCard({ children, className = "", hoverEffect = false }: NeoCardProps) {
+export default function NeoCard({ children, className = "", hoverEffect = false, onClick }: NeoCardProps) {
     return (
         <motion.div
+            onClick={onClick}
             initial={{ boxShadow: "6px 6px 0 var(--neo-shadow-color)" }}
             whileHover={hoverEffect ? {
                 x: -2,

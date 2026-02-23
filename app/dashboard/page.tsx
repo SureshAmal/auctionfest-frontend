@@ -6,10 +6,11 @@ import { useSocket } from "../../context/socket-context";
 import BidCard from "../../components/BidCard";
 import TrackingWindow from "../../components/TrackingWindow";
 import NeoLayout from "../../components/neo/NeoLayout";
+import { MapPin, Info, ArrowUpCircle, AlertTriangle, LogOut, CheckCircle2, Activity } from "lucide-react";
+import CityMap from "@/components/map/CityMap";
 import NeoCard from "../../components/neo/NeoCard";
 import NeoBadge from "../../components/neo/NeoBadge";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogOut, Activity, MapPin, Info } from "lucide-react";
 
 /** Component to dynamically fetch, parse, and animate SVG plots from /plots_svg/ */
 const AnimatedSvgPlot = ({ plotNumber }: { plotNumber: number | string }) => {
@@ -40,7 +41,7 @@ const AnimatedSvgPlot = ({ plotNumber }: { plotNumber: number | string }) => {
 
     if (!svgData) {
         return (
-            <div className="text-center text-gray-400 w-full h-full flex flex-col items-center justify-center">
+            <div className="text-center text-[var(--color-text)] opacity-40 w-full h-full flex flex-col items-center justify-center">
                 <MapPin size={64} className="mx-auto mb-2 opacity-30 animate-pulse" />
                 <p className="font-bold uppercase text-sm">Loading Shape...</p>
             </div>
@@ -268,16 +269,16 @@ export default function Dashboard() {
 
     return (
         <NeoLayout className="h-screen overflow-hidden" containerized={false}>
-            <div className="flex flex-col h-full p-4 pb-2">
+            <div className="flex flex-col h-full p-2 sm:p-4 pb-2">
                 {/* Header */}
-                <header className="flex flex-col md:flex-row justify-between items-center mb-3 gap-2 border-b-4 border-black pb-3 bg-[var(--color-bg)] shrink-0">
+                <header className="flex flex-col md:flex-row justify-between items-center mb-3 gap-2 border-b-4 border-[var(--color-border)] pb-3 bg-[var(--color-bg)] shrink-0">
                     <div>
-                        <h1 className="text-4xl font-black uppercase tracking-tighter text-[var(--color-primary)]">
+                        <h1 className="text-2xl sm:text-4xl font-black uppercase text-[var(--color-primary)]">
                             AU-FEST 2026
                         </h1>
                         <div className="flex items-center gap-3 text-xs font-bold uppercase mt-1">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 border-2 border-black ${isConnected ? "bg-green-400" : "bg-red-400"}`}>
-                                <span className={`w-2 h-2 border border-black ${isConnected ? "bg-green-600" : "bg-red-600"}`} />
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 border-2 border-[var(--color-border)] ${isConnected ? "bg-[var(--color-success)]" : "bg-[var(--color-danger)]"}`}>
+                                <span className={`w-2 h-2 border border-[var(--color-border)] ${isConnected ? "bg-[var(--color-success)]" : "bg-[var(--color-danger)]"}`} />
                                 {isConnected ? "Live" : "Offline"}
                             </span>
                             <NeoBadge variant="info">{getRoundLabel(currentRound)}</NeoBadge>
@@ -285,9 +286,9 @@ export default function Dashboard() {
                     </div>
 
                     <div className="flex flex-wrap gap-4 items-center justify-end">
-                        <div className="flex flex-col justify-center items-end neo-border px-4 py-2 bg-cyan-400 text-black shadow-[4px_4px_0_black]">
-                            <p className="text-xs font-black uppercase text-black/70 mb-1">Remaining Budget</p>
-                            <p className="font-mono font-black text-2xl tracking-tighter bg-white px-2 border-2 border-black shadow-[2px_2px_0_black]">
+                        <div className="flex flex-col justify-center items-end neo-border px-3 sm:px-4 py-2 bg-[var(--color-secondary)] text-black shadow-[4px_4px_0_black]">
+                            <p className="text-[10px] sm:text-xs font-black uppercase text-black/70 mb-1">Remaining Budget</p>
+                            <p className="font-mono font-black text-lg sm:text-2xl tracking-normal bg-[var(--color-bg)] px-2 border-2 border-[var(--color-border)] shadow-[2px_2px_0_black]">
                                 ₹ {(
                                     Number(userTeam.budget) -
                                     Number(userTeam.spent || 0) -
@@ -306,7 +307,7 @@ export default function Dashboard() {
                                 localStorage.clear();
                                 router.push("/");
                             }}
-                            className="p-3 bg-red-500 text-white border-4 border-black hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none shadow-[4px_4px_0_black] transition-all"
+                            className="p-3 bg-[var(--color-danger)] text-white border-4 border-[var(--color-border)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none shadow-[4px_4px_0_black] transition-all"
                         >
                             <LogOut size={20} strokeWidth={3} />
                         </button>
@@ -317,7 +318,7 @@ export default function Dashboard() {
                 {auctionStatus !== "running" && auctionStatus !== "selling" ? (
                     /* NOT RUNNING: Show only grayscale plot image */
                     <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
-                        <NeoCard className="p-0 overflow-hidden relative bg-gray-100 w-full max-w-3xl h-full">
+                        <NeoCard className="p-0 overflow-hidden relative bg-[var(--color-bg)] w-full max-w-3xl h-full">
                             <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/30">
                                 <div className="text-center">
                                     <MapPin size={64} className="mx-auto mb-3 text-white opacity-70" />
@@ -331,20 +332,18 @@ export default function Dashboard() {
                                     </p>
                                 </div>
                             </div>
-                            <img
-                                src="/planomics.png"
-                                alt="Plot Map"
-                                className="w-full h-full object-contain p-4 grayscale"
-                            />
+                            <div className="absolute inset-0 pointer-events-none p-4 opacity-50">
+                                <CityMap />
+                            </div>
                         </NeoCard>
                     </div>
                 ) : (
                     /* RUNNING: Show 3-column layout */
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 overflow-hidden">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden">
 
                         {/* LEFT: Plot Image */}
-                        <div className="lg:col-span-5 min-h-0 overflow-hidden">
-                            <NeoCard className="p-0 overflow-hidden h-full relative bg-gray-100">
+                        <div className="lg:col-span-5 min-h-[200px] sm:min-h-[300px] lg:min-h-0 overflow-hidden">
+                            <NeoCard className="p-0 overflow-hidden h-full relative bg-[var(--color-bg)]">
                                 <div className="absolute top-3 left-3 z-10">
                                     <NeoBadge variant="neutral">
                                         <MapPin size={14} className="mr-1" />
@@ -370,7 +369,7 @@ export default function Dashboard() {
                                                             initial={{ opacity: 0, scale: 0.5 }}
                                                             animate={{ opacity: 1, scale: 1 }}
                                                             exit={{ opacity: 0, scale: 1.5 }}
-                                                            className="absolute inset-0 bg-red-600/90 z-20 flex flex-col items-center justify-center backdrop-blur-sm shadow-[inset_0_0_50px_rgba(0,0,0,0.5)]"
+                                                            className="absolute inset-0 bg-[var(--color-danger)]/90 z-20 flex flex-col items-center justify-center backdrop-blur-sm shadow-[inset_0_0_50px_rgba(0,0,0,0.5)]"
                                                         >
                                                             <motion.span
                                                                 key={sellCountdown}
@@ -388,7 +387,7 @@ export default function Dashboard() {
                                                 </AnimatePresence>
                                             </>
                                         ) : (
-                                            <div className="text-center text-gray-400">
+                                            <div className="text-center text-[var(--color-text)] opacity-40">
                                                 <MapPin size={64} className="mx-auto mb-2 opacity-30" />
                                                 <p className="font-bold uppercase text-sm">Waiting for plot...</p>
                                             </div>
@@ -399,49 +398,49 @@ export default function Dashboard() {
                         </div>
 
                         {/* CENTER: Plot Details + Bid Input */}
-                        <div className="lg:col-span-4 flex flex-col gap-3 min-h-0 overflow-y-auto">
+                        <div className="lg:col-span-4 flex flex-col gap-3 min-h-0 lg:overflow-y-auto">
                             {/* Plot Details Card */}
                             {currentPlot ? (
                                 <NeoCard>
-                                    <h2 className="text-2xl font-black uppercase mb-4 flex items-center gap-2">
-                                        <Info size={24} /> Plot #{currentPlot.number} Details
+                                    <h2 className="text-lg sm:text-2xl font-black uppercase mb-3 sm:mb-4 flex items-center gap-2">
+                                        <Info size={20} /> Plot #{currentPlot.number} Details
                                     </h2>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="neo-border p-3 bg-[var(--color-surface)]">
-                                            <p className="text-xs font-bold uppercase text-gray-500">Type</p>
+                                            <p className="text-xs font-bold uppercase text-[var(--color-text)] opacity-50">Type</p>
                                             <p className="font-black text-lg uppercase">{currentPlot.plot_type || "N/A"}</p>
                                         </div>
                                         <div className="neo-border p-3 bg-[var(--color-surface)]">
-                                            <p className="text-xs font-bold uppercase text-gray-500">Total Area</p>
+                                            <p className="text-xs font-bold uppercase text-[var(--color-text)] opacity-50">Total Area</p>
                                             <p className="font-black text-lg">{currentPlot.total_area?.toLocaleString() || "0"} sq ft</p>
                                         </div>
                                         <div className="neo-border p-3 bg-[var(--color-surface)]">
-                                            <p className="text-xs font-bold uppercase text-gray-500">Actual Area</p>
+                                            <p className="text-xs font-bold uppercase text-[var(--color-text)] opacity-50">Actual Area</p>
                                             <p className="font-black text-lg">{currentPlot.actual_area?.toLocaleString() || "0"} sq ft</p>
                                         </div>
                                         <div className="neo-border p-3 bg-[var(--color-surface)]">
-                                            <p className="text-xs font-bold uppercase text-gray-500">Total Plot Price</p>
+                                            <p className="text-xs font-bold uppercase text-[var(--color-text)] opacity-50">Total Plot Price</p>
                                             <p className="font-black text-lg">₹ {currentPlot.total_plot_price?.toLocaleString() || "0"}</p>
                                         </div>
                                         {Number(currentPlot.round_adjustment) !== 0 && (
-                                            <div className={`neo-border p-3 col-span-2 ${currentPlot.round_adjustment > 0 ? "bg-green-100" : "bg-red-100"}`}>
-                                                <p className="text-xs font-bold uppercase text-gray-500">Round Adjustment</p>
-                                                <p className={`font-black text-lg ${currentPlot.round_adjustment > 0 ? "text-green-700" : "text-red-700"}`}>
+                                            <div className={`neo-border p-3 col-span-2 ${currentPlot.round_adjustment > 0 ? "bg-[var(--color-success)]/20" : "bg-[var(--color-danger)]/20"}`}>
+                                                <p className="text-xs font-bold uppercase text-[var(--color-text)] opacity-50">Round Adjustment</p>
+                                                <p className={`font-black text-lg ${currentPlot.round_adjustment > 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
                                                     {currentPlot.round_adjustment > 0 ? "+" : ""}₹ {currentPlot.round_adjustment?.toLocaleString()}
                                                 </p>
                                             </div>
                                         )}
                                         {currentPlot.winner_team_id && (
-                                            <div className="neo-border p-3 bg-yellow-100 col-span-2">
-                                                <p className="text-xs font-bold uppercase text-gray-500">Current High Bid Team</p>
+                                            <div className="neo-border p-3 bg-[var(--color-surface)] col-span-2">
+                                                <p className="text-xs font-bold uppercase text-[var(--color-text)] opacity-50">Current High Bid Team</p>
                                                 <p className="font-black text-lg uppercase">{getTeamName(currentPlot.winner_team_id)}</p>
                                             </div>
                                         )}
                                     </div>
                                 </NeoCard>
                             ) : (
-                                <NeoCard className="flex flex-col items-center justify-center min-h-[200px] text-center bg-gray-100 border-dashed">
-                                    <p className="font-bold text-xl uppercase text-gray-400">Waiting for plot...</p>
+                                <NeoCard className="flex flex-col items-center justify-center min-h-[200px] text-center bg-[var(--color-bg)] border-dashed">
+                                    <p className="font-bold text-xl uppercase text-[var(--color-text)] opacity-40">Waiting for plot...</p>
                                 </NeoCard>
                             )}
 
@@ -452,6 +451,7 @@ export default function Dashboard() {
                                 allTeams={allTeams}
                                 currentRound={currentRound}
                                 auctionStatus={auctionStatus}
+                                className="flex-1"
                             />
 
                             {/* Sold Plots Summary - visible during adjustment rounds */}
@@ -464,7 +464,7 @@ export default function Dashboard() {
                                         {plots.filter(p => p.status?.toLowerCase() === "sold" && p.winner_team_id).length > 0 ? (
                                             <table className="w-full text-xs">
                                                 <thead>
-                                                    <tr className="border-b-2 border-black text-left uppercase">
+                                                    <tr className="border-b-2 border-[var(--color-border)] text-left uppercase">
                                                         <th className="py-1 px-1">Plot</th>
                                                         <th className="py-1 px-1">Team</th>
                                                         <th className="py-1 px-1 text-right">Price</th>
@@ -472,7 +472,7 @@ export default function Dashboard() {
                                                 </thead>
                                                 <tbody>
                                                     {plots.filter(p => p.status?.toLowerCase() === "sold" && p.winner_team_id).map(p => (
-                                                        <tr key={p.number} className="border-b border-gray-200">
+                                                        <tr key={p.number} className="border-b border-[var(--color-border)] opacity-20">
                                                             <td className="py-1 px-1 font-bold">#{p.number}</td>
                                                             <td className="py-1 px-1">{getTeamName(p.winner_team_id)}</td>
                                                             <td className="py-1 px-1 text-right font-mono">₹{Number(p.current_bid).toLocaleString("en-IN")}</td>
@@ -481,7 +481,7 @@ export default function Dashboard() {
                                                 </tbody>
                                             </table>
                                         ) : (
-                                            <p className="text-gray-400 text-xs italic">No plots sold yet.</p>
+                                            <p className="text-[var(--color-text)] opacity-40 text-xs italic">No plots sold yet.</p>
                                         )}
                                     </div>
                                 </NeoCard>
@@ -489,7 +489,7 @@ export default function Dashboard() {
                         </div>
 
                         {/* RIGHT: Live Feed */}
-                        <div className="lg:col-span-3 min-h-0 overflow-hidden">
+                        <div className="lg:col-span-3 min-h-[200px] lg:min-h-0 overflow-hidden">
                             <NeoCard className="h-full overflow-hidden flex flex-col">
                                 <h3 className="text-lg font-black uppercase mb-4 flex items-center gap-2">
                                     <Activity size={20} /> Feed
@@ -502,16 +502,16 @@ export default function Dashboard() {
                                                 key={`${bid.timestamp}-${i}`}
                                                 initial={{ x: 20, opacity: 0 }}
                                                 animate={{ x: 0, opacity: 1 }}
-                                                className="flex flex-col bg-[var(--color-surface)] p-2 border-2 border-black font-bold shadow-[3px_3px_0_black]"
+                                                className="flex flex-col bg-[var(--color-surface)] p-2 border-2 border-[var(--color-border)] font-bold shadow-[3px_3px_0_black]"
                                             >
                                                 <div className="flex justify-between items-center">
                                                     <span className="uppercase text-sm">{bid.team_name}</span>
-                                                    <span className="font-mono text-sm text-green-700">₹ {bid.amount?.toLocaleString()}</span>
+                                                    <span className="font-mono text-sm font-black">₹ {bid.amount?.toLocaleString("en-IN")}</span>
                                                 </div>
                                             </motion.div>
                                         ))}
                                     {recentBids.filter(b => b.plot_number === currentPlot?.number).length === 0 && (
-                                        <p className="text-gray-500 italic text-sm border-2 border-dashed border-gray-300 p-4 text-center">
+                                        <p className="text-[var(--color-text)] opacity-50 italic text-sm border-2 border-dashed border-[var(--color-border)] opacity-30 p-4 text-center">
                                             No bids yet...
                                         </p>
                                     )}

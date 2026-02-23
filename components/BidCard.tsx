@@ -19,6 +19,8 @@ interface BidCardProps {
     currentRound?: number;
     /** The current auction status. */
     auctionStatus?: string;
+    /** Optional parent className. */
+    className?: string;
 }
 
 /**
@@ -27,7 +29,7 @@ interface BidCardProps {
  * Displays bid input with increment/decrement controls during bidding rounds (1 & 4).
  * Shows an "Adjustment Round" waiting message during rounds 2 & 3.
  */
-export default function BidCard({ currentPlot, userTeam, allTeams = [], currentRound = 1, auctionStatus = "not_started" }: BidCardProps) {
+export default function BidCard({ currentPlot, userTeam, allTeams = [], currentRound = 1, auctionStatus = "not_started", className = "" }: BidCardProps) {
     const { socket } = useSocket();
     const [bidAmount, setBidAmount] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -123,9 +125,9 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
 
     if (!currentPlot) {
         return (
-            <NeoCard className="flex flex-col items-center justify-center min-h-[150px] text-center bg-gray-100 border-dashed">
-                <Loader2 className="animate-spin mb-2 text-gray-400" size={32} />
-                <p className="font-bold text-sm uppercase text-gray-400">Waiting for next plot...</p>
+            <NeoCard className="flex flex-col items-center justify-center min-h-[150px] text-center bg-[var(--color-bg)] border-dashed">
+                <Loader2 className="animate-spin mb-2 text-[var(--color-text)] opacity-40" size={32} />
+                <p className="font-bold text-sm uppercase text-[var(--color-text)] opacity-40">Waiting for next plot...</p>
             </NeoCard>
         );
     }
@@ -135,9 +137,9 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
         return (
             <NeoCard className="bg-[var(--color-bg)]">
                 <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <Clock size={48} className="text-yellow-500 mb-3" />
+                    <Clock size={48} className="text-[var(--color-primary)] mb-3" />
                     <h3 className="text-xl font-black uppercase mb-2">Adjustment Round</h3>
-                    <p className="text-sm font-bold text-gray-500 uppercase">
+                    <p className="text-sm font-bold text-[var(--color-text)] opacity-50 uppercase">
                         Waiting for admin to apply adjustments...
                     </p>
                     <div className="mt-3"><NeoBadge variant="warning">Round {currentRound}</NeoBadge></div>
@@ -149,7 +151,7 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
     // Show selling countdown lock state
     if (auctionStatus === "selling") {
         return (
-            <NeoCard className="bg-red-500 border-black animate-pulse shadow-[8px_8px_0_black]">
+            <NeoCard className="bg-[var(--color-danger)] border-[var(--color-border)] animate-pulse shadow-[8px_8px_0_black]">
                 <div className="flex flex-col items-center justify-center py-10 text-center">
                     <Clock size={48} className="text-white mb-3" />
                     <h3 className="text-4xl font-black uppercase mb-3 text-white tracking-widest leading-none">GOING...</h3>
@@ -160,11 +162,11 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
                                 const newBalance = winTeam ? (Number(winTeam.budget) - Number(winTeam.spent) - Number(currentPlot.current_bid)) : 0;
                                 return (
                                     <>
-                                        <p className="text-xs uppercase font-bold text-gray-300">Highest Bidder</p>
+                                        <p className="text-xs uppercase font-bold text-[var(--color-text)] opacity-30">Highest Bidder</p>
                                         <p className="text-2xl font-black">{getTeamName(currentPlot.winner_team_id)}</p>
-                                        <p className="text-lg font-mono text-green-400">₹{Number(currentPlot.current_bid).toLocaleString("en-IN")}</p>
+                                        <p className="text-lg font-mono text-[var(--color-success)]">₹{Number(currentPlot.current_bid).toLocaleString("en-IN")}</p>
                                         {winTeam && (
-                                            <p className="text-sm font-bold text-yellow-300 mt-2 border-t border-dashed border-gray-500 pt-1">
+                                            <p className="text-sm font-bold text-[var(--color-surface)] mt-2 border-t border-dashed border-[var(--color-border)] opacity-50 pt-1">
                                                 New Balance: ₹{newBalance.toLocaleString("en-IN")}
                                             </p>
                                         )}
@@ -216,8 +218,8 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
     const bidAmountNum = parseInt(bidAmount) || 0;
 
     return (
-        <NeoCard className="bg-[var(--color-bg)]">
-            <div className="flex items-center justify-between mb-4">
+        <NeoCard className={`bg-[var(--color-bg)] flex flex-col ${className}`}>
+            <div className="flex items-center justify-between mb-4 shrink-0">
                 <h3 className="text-lg font-black uppercase flex items-center gap-2">
                     <Gavel size={20} /> Place Bid
                 </h3>
@@ -244,9 +246,9 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
 
                 {/* Projected Balance on Win */}
                 {(bidAmountNum > 0 || currentPlot?.winner_team_id === userTeam.id) && (
-                    <div className="flex justify-between items-center text-xs font-black uppercase neo-border p-2 bg-emerald-400 text-black shadow-[3px_3px_0_black] mb-3">
+                    <div className="flex justify-between items-center text-xs font-black uppercase neo-border p-2 bg-[var(--color-success)] text-[var(--color-text)] shadow-[3px_3px_0_black] mb-3">
                         <span>If {bidAmountNum > 0 ? "Bid" : "Current Bid"} Won</span>
-                        <span className="font-mono text-sm leading-none bg-white px-2 py-1 border-2 border-black">
+                        <span className="font-mono text-sm leading-none bg-[var(--color-bg)] px-2 py-1 border-2 border-[var(--color-border)]">
                             ₹ {Math.max(0,
                                 (Number(userTeam.budget) - Number(userTeam.spent || 0)) -
                                 (bidAmountNum > 0 ? bidAmountNum : Number(currentPlot.current_bid))
@@ -270,7 +272,7 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
                     </NeoButton>
 
                     <div className="relative flex-1">
-                        <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text)] opacity-40" size={20} />
                         <input
                             type="text"
                             inputMode="numeric"
@@ -297,7 +299,7 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
 
                 {/* Price in words hint */}
                 {bidAmountNum > 0 && (
-                    <p className="text-xs font-bold text-gray-500 text-center -mt-2">
+                    <p className="text-xs font-bold text-[var(--color-text)] opacity-50 text-center -mt-2">
                         ₹ {numberToIndianWords(bidAmountNum)}
                     </p>
                 )}
@@ -309,7 +311,7 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: "auto", opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            className="bg-red-100 border-l-8 border-red-500 p-3 font-bold text-red-700 flex items-center gap-2"
+                            className="bg-[var(--color-danger)]/20 border-l-8 border-[var(--color-danger)] p-3 font-bold text-[var(--color-danger)] flex items-center gap-2"
                         >
                             <AlertCircle size={20} /> {error}
                         </motion.div>
@@ -319,7 +321,7 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: "auto", opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            className="bg-green-100 border-l-8 border-green-500 p-3 font-bold text-green-700 flex items-center gap-2"
+                            className="bg-[var(--color-success)]/20 border-l-8 border-[var(--color-danger)] p-3 font-bold text-[var(--color-success)] flex items-center gap-2"
                         >
                             <CheckCircle size={20} /> {successMsg}
                         </motion.div>
@@ -327,15 +329,17 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
                 </AnimatePresence>
 
                 {/* Submit Button */}
-                <NeoButton
-                    variant="primary"
-                    size="lg"
-                    onClick={handlePlaceBid}
-                    disabled={isSubmitting || currentPlot.winner_team_id === userTeam.id}
-                    className={`w-full text-xl ${isSubmitting || currentPlot.winner_team_id === userTeam.id ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                    {isSubmitting ? <Loader2 className="animate-spin" /> : "PLACE BID"}
-                </NeoButton>
+                <div className="mt-auto pt-2">
+                    <NeoButton
+                        variant="primary"
+                        size="lg"
+                        onClick={handlePlaceBid}
+                        disabled={isSubmitting || currentPlot.winner_team_id === userTeam.id}
+                        className={`w-full text-xl ${isSubmitting || currentPlot.winner_team_id === userTeam.id ? "opacity-50 cursor-not-allowed" : ""}`}
+                    >
+                        {isSubmitting ? <Loader2 className="animate-spin" /> : "PLACE BID"}
+                    </NeoButton>
+                </div>
             </div>
         </NeoCard>
     );

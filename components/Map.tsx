@@ -94,7 +94,7 @@ export default function Map({ plots, currentPlotNumber }: MapProps) {
         // The user provided images are Square, but the polygons were traced on a 1.414 map.
         // We MUST use aspect-[1.414] for the polygons to align correctly.
         // The Image will be stretched (object-fill) to fit this container, resolving the misalignment.
-        <div className="relative max-h-[80vh] w-auto aspect-[1.414] mx-auto bg-gray-900 rounded-xl overflow-hidden shadow-2xl border border-white/10 group">
+        <div className="relative max-h-[80vh] w-auto aspect-[1.414] mx-auto bg-[var(--color-text)] rounded-xl overflow-hidden shadow-2xl border border-white/10 group">
 
             {/* Movable Container (Pan & Zoom) */}
             <AnimatePresence mode="wait">
@@ -244,7 +244,7 @@ export default function Map({ plots, currentPlotNumber }: MapProps) {
 
             {/* Overlay Info */}
             <div className="absolute top-4 left-4 pointer-events-none z-10">
-                <div className="bg-[var(--color-surface)] px-3 py-1.5 border-2 border-black font-bold text-xs text-black shadow-[2px_2px_0_black]">
+                <div className="bg-[var(--color-surface)] px-3 py-1.5 border-2 border-[var(--color-border)] font-bold text-xs text-[var(--color-text)] shadow-[2px_2px_0_black]">
                     {currentPlotNumber ? `Viewing Plot ${currentPlotNumber}` : "Overview"}
                 </div>
             </div>

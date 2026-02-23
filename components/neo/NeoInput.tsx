@@ -13,7 +13,7 @@ export default function NeoInput({ label, className = "", ...props }: NeoInputPr
                 <label className="font-bold uppercase tracking-wide text-sm">{label}</label>
             )}
             <input
-                className={`neo-input bg-white text-black placeholder:text-gray-500 w-full ${className}`}
+                className={`neo-input bg-[var(--color-bg)] text-[var(--color-text)] placeholder:text-[var(--color-text)] opacity-50 w-full ${className}`}
                 {...props}
             />
         </div>

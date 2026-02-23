@@ -11,8 +11,9 @@ import NeoInput from "../../components/neo/NeoInput";
 import {
     Play, SkipForward, Pause, RefreshCw, Trophy,
     ShieldAlert, Users, Settings, TrendingUp, TrendingDown,
-    Clock
+    Clock, Menu, X, MapPin, AlertTriangle, Rocket
 } from "lucide-react";
+import CityMap from "@/components/map/CityMap";
 
 /**
  * Admin page for controlling the auction.
@@ -27,6 +28,41 @@ import {
  */
 export default function AdminPage() {
     const { socket } = useSocket();
+
+    // Admin Authentication Gate
+    const [isAdminAuth, setIsAdminAuth] = useState(false);
+    const [adminPassInput, setAdminPassInput] = useState("");
+    const [authError, setAuthError] = useState("");
+
+    // Check localStorage for existing admin session on mount
+    useEffect(() => {
+        const storedAuth = localStorage.getItem("admin_auth");
+        if (storedAuth === "true") {
+            setIsAdminAuth(true);
+        }
+    }, []);
+
+    /** Verify admin password via the backend API. */
+    const handleAdminLogin = async () => {
+        try {
+            const res = await fetch("/api/admin/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password: adminPassInput }),
+            });
+            if (res.ok) {
+                setIsAdminAuth(true);
+                localStorage.setItem("admin_auth", "true");
+                setAuthError("");
+            } else {
+                setAuthError("Incorrect password!");
+                setAdminPassInput("");
+            }
+        } catch {
+            setAuthError("Server error, try again.");
+        }
+    };
+
     const [plots, setPlots] = useState<any[]>([]);
     const [teams, setTeams] = useState<any[]>([]);
     const [currentPlot, setCurrentPlot] = useState<any>(null);
@@ -35,11 +71,17 @@ export default function AdminPage() {
     const [connectedCount, setConnectedCount] = useState(0);
     const [connectedTeams, setConnectedTeams] = useState<string[]>([]);
 
+    // Sorting state
+    const [sortKey, setSortKey] = useState<string>("number");
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
     // Round & Adjustment state
     const [currentRound, setCurrentRound] = useState(1);
     const [adjustPlotNumber, setAdjustPlotNumber] = useState("");
     const [adjustAmount, setAdjustAmount] = useState("");
     const [adjustMessage, setAdjustMessage] = useState("");
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
     // Fetch Data
     useEffect(() => {
@@ -207,20 +249,55 @@ export default function AdminPage() {
         }
     };
 
+    // --- Admin Password Gate ---
+    if (!isAdminAuth) {
+        return (
+            <NeoLayout containerized={false}>
+                <div className="h-screen flex items-center justify-center bg-[var(--color-bg)]">
+                    <NeoCard className="w-full max-w-md p-8 text-center">
+                        <ShieldAlert size={64} className="text-[var(--color-primary)] mx-auto mb-4" strokeWidth={3} />
+                        <h1 className="text-3xl font-black uppercase mb-2 tracking-tight">Admin Access</h1>
+                        <p className="text-sm font-bold text-[var(--color-text)] opacity-50 mb-6 uppercase">Enter admin password to continue</p>
+
+                        <div className="space-y-4">
+                            <NeoInput
+                                type="password"
+                                placeholder="Enter Password"
+                                value={adminPassInput}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAdminPassInput(e.target.value)}
+                                onKeyDown={(e: React.KeyboardEvent) => e.key === "Enter" && handleAdminLogin()}
+                                className="text-center text-lg font-bold"
+                            />
+                            {authError && (
+                                <p className="text-[var(--color-danger)] font-black text-sm uppercase animate-pulse">{authError}</p>
+                            )}
+                            <NeoButton
+                                onClick={handleAdminLogin}
+                                className="w-full text-lg font-black uppercase py-3"
+                            >
+                                <ShieldAlert size={20} className="mr-2" /> Unlock Admin
+                            </NeoButton>
+                        </div>
+                    </NeoCard>
+                </div>
+            </NeoLayout>
+        );
+    }
+
     return (
         <NeoLayout containerized={false}>
-            <div className="h-screen flex flex-col overflow-hidden px-3 py-2">
+            <div className="min-h-screen lg:h-screen flex flex-col lg:overflow-hidden px-3 py-2">
                 <header className="flex flex-col md:flex-row justify-between items-center mb-2 gap-2 border-b-4 border-black pb-2">
                     <div className="flex items-center gap-4">
                         <ShieldAlert size={48} className="text-[var(--color-primary)]" strokeWidth={3} />
-                        <h1 className="text-4xl font-black uppercase tracking-tighter">
+                        <h1 className="text-4xl font-black uppercase tracking-normal">
                             ADMIN PANEL
                         </h1>
                     </div>
 
                     <div className="flex flex-wrap gap-4 items-center">
-                        <div className="flex items-center gap-2 neo-border px-4 py-2 bg-white">
-                            <Users size={20} className="text-blue-600" />
+                        <div className="flex items-center gap-2 neo-border px-4 py-2 bg-[var(--color-bg)]">
+                            <Users size={20} className="text-[var(--color-secondary)]" />
                             <span className="font-black text-xl">{connectedCount}</span>
                             <span className="font-bold uppercase text-sm">Online</span>
                         </div>
@@ -234,10 +311,21 @@ export default function AdminPage() {
                             <span className="font-black text-2xl">#{auctionState?.current_plot_number || "-"}</span>
                         </div>
 
-                        <div className="neo-border px-4 py-2 bg-blue-100">
+                        <div className="neo-border px-4 py-2 bg-[var(--color-surface)]">
                             <span className="font-bold uppercase text-xs block">Round</span>
                             <span className="font-black text-2xl">{currentRound}</span>
                         </div>
+
+                        <NeoButton
+                            variant="danger"
+                            className="text-xs py-2 font-black"
+                            onClick={() => {
+                                localStorage.removeItem("admin_auth");
+                                setIsAdminAuth(false);
+                            }}
+                        >
+                            🔒 Lock
+                        </NeoButton>
                     </div>
                 </header>
 
@@ -249,7 +337,7 @@ export default function AdminPage() {
                     <div className="lg:col-span-1 flex flex-col gap-3 min-h-0 overflow-y-auto">
 
                         {/* Admin Controls Card */}
-                        <NeoCard className="shrink-0 bg-gray-50">
+                        <NeoCard className="shrink-0 bg-[var(--color-bg)]">
                             <h2 className="text-sm font-black uppercase mb-2 flex items-center gap-2">
                                 <Settings size={16} /> Admin Controls
                             </h2>
@@ -268,7 +356,7 @@ export default function AdminPage() {
                                     variant="base"
                                     onClick={() => sendAction("pause")}
                                     disabled={!isRunning}
-                                    className={`text-xs py-2 ${!isRunning ? "opacity-50 bg-yellow-100" : "bg-yellow-400"}`}
+                                    className={`text-xs py-2 ${!isRunning ? "opacity-50 bg-[var(--color-surface)]" : "bg-[var(--color-surface)]"}`}
                                 >
                                     <Pause size={14} className="mr-1" /> PAUSE
                                 </NeoButton>
@@ -323,12 +411,12 @@ export default function AdminPage() {
                             </div>
 
                             {/* Round Selector */}
-                            <div className="flex gap-1 justify-between items-center neo-border px-1 bg-white mb-3">
+                            <div className="flex gap-1 justify-between items-center neo-border px-1 bg-[var(--color-bg)] mb-3">
                                 {[1, 2, 3, 4].map(r => (
                                     <button
                                         key={r}
                                         onClick={() => handleSetRound(r)}
-                                        className={`flex-1 py-1.5 text-[10px] font-black uppercase border-2 border-transparent transition-all ${currentRound === r ? "bg-[var(--color-primary)] text-white border-black" : "hover:bg-gray-100"}`}
+                                        className={`flex-1 py-1.5 text-[10px] font-black uppercase border-2 border-transparent transition-all ${currentRound === r ? "bg-[var(--color-primary)] text-white border-[var(--color-border)]" : "hover:bg-[var(--color-surface)]"}`}
                                     >
                                         R{r}
                                     </button>
@@ -337,7 +425,7 @@ export default function AdminPage() {
 
                             {/* Adjustment Panel */}
                             {(currentRound === 2 || currentRound === 3) && (
-                                <div className="space-y-2 neo-border p-2 bg-yellow-50">
+                                <div className="space-y-2 neo-border p-2 bg-[var(--color-surface)]">
                                     <p className="text-[10px] font-black uppercase">Adjust Rounds</p>
                                     <input
                                         type="text"
@@ -359,26 +447,26 @@ export default function AdminPage() {
                                         </NeoButton>
                                     </div>
                                     {adjustMessage && (
-                                        <p className="text-[10px] font-bold text-green-700 leading-tight">{adjustMessage}</p>
+                                        <p className="text-[10px] font-bold text-[var(--color-success)] leading-tight">{adjustMessage}</p>
                                     )}
                                 </div>
                             )}
                         </NeoCard>
 
                         {/* Leaderboard */}
-                        <NeoCard className="shrink-0">
-                            <h2 className="text-sm font-black uppercase mb-2 flex items-center gap-2">
-                                <Trophy size={16} className="text-yellow-600" /> Leaderboard
+                        <NeoCard className="hidden lg:flex flex-col min-h-0 overflow-hidden flex-1">
+                            <h2 className="text-sm font-black uppercase mb-2 flex items-center gap-2 shrink-0">
+                                <Trophy size={16} className="text-[var(--color-primary)]" /> Leaderboard
                             </h2>
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 flex-1 min-h-0 overflow-y-auto pr-1">
                                 {[...teams].sort((a, b) => b.plots_won - a.plots_won || parseFloat(b.spent || 0) - parseFloat(a.spent || 0)).map((team, i) => (
-                                    <div key={team.id} className="flex justify-between items-center bg-white p-2 border-2 border-black text-xs">
+                                    <div key={team.id} className="flex justify-between items-center bg-[var(--color-bg)] p-2 border-2 border-[var(--color-border)] text-xs">
                                         <div className="flex items-center gap-2">
                                             <span className="font-black w-5">#{i + 1}</span>
                                             <span className="font-bold uppercase">{team.name}</span>
                                         </div>
                                         <div className="text-right font-mono font-bold">
-                                            <div className="text-green-600">★{team.plots_won}</div>
+                                            <div className="text-[var(--color-success)]">★{team.plots_won}</div>
                                             <div>₹{Number(team.spent || 0).toLocaleString("en-IN")}</div>
                                         </div>
                                     </div>
@@ -386,22 +474,7 @@ export default function AdminPage() {
                             </div>
                         </NeoCard>
 
-                        {/* Connected Teams */}
-                        <NeoCard className="shrink-0">
-                            <h2 className="text-sm font-black uppercase mb-2 flex items-center gap-2">
-                                <Users size={16} className="text-blue-600" /> Online ({connectedTeams.length})
-                            </h2>
-                            <div className="space-y-1">
-                                {connectedTeams.length > 0 ? connectedTeams.map((name, i) => (
-                                    <div key={i} className="flex items-center gap-2 bg-gray-100 p-1.5 border border-black font-bold text-xs">
-                                        <span className="w-2 h-2 bg-green-500 border border-black" />
-                                        <span>{name}</span>
-                                    </div>
-                                )) : (
-                                    <p className="text-gray-500 text-xs italic border border-dashed border-gray-300 p-2">No one connected</p>
-                                )}
-                            </div>
-                        </NeoCard>
+
                     </div>
 
                     {/* Right: Plot Status Table - full remaining space */}
@@ -409,36 +482,158 @@ export default function AdminPage() {
                         <NeoCard className="flex-1 flex flex-col min-h-0 overflow-hidden">
                             <h3 className="text-sm font-black uppercase mb-2">Plot Status</h3>
                             <div className="flex-1 min-h-0 overflow-y-auto">
-                                <NeoTable
-                                    headers={["#", "Type", "Area", "Base", "Adj.", "Status", "Team", "Bid"]}
-                                    data={plots}
-                                    renderRow={(p) => (
-                                        <>
-                                            <td className="px-2 py-1.5 font-bold bg-gray-50 text-sm">{p.number}</td>
-                                            <td className="px-2 py-1.5 text-xs font-bold uppercase">{p.plot_type || "-"}</td>
-                                            <td className="px-2 py-1.5 font-mono text-xs">{p.actual_area?.toLocaleString() || "-"}</td>
-                                            <td className="px-2 py-1.5 font-mono text-xs">₹{p.base_price?.toLocaleString() || "-"}</td>
-                                            <td className={`px-2 py-1.5 font-mono text-xs font-bold ${(p.round_adjustment || 0) > 0 ? "text-green-600" : (p.round_adjustment || 0) < 0 ? "text-red-600" : ""}`}>
-                                                {Number(p.round_adjustment) !== 0 ? `${p.round_adjustment > 0 ? "+" : ""}₹${Number(p.round_adjustment).toLocaleString("en-IN")}` : "-"}
-                                            </td>
-                                            <td className="px-2 py-1.5">
-                                                <NeoBadge variant={
-                                                    p.status === "sold" ? "success" :
-                                                        p.status === "active" ? "info" : "neutral"
-                                                }>
-                                                    {p.status}
-                                                </NeoBadge>
-                                            </td>
-                                            <td className="px-2 py-1.5 text-xs font-bold uppercase">{getTeamName(p.winner_team_id)}</td>
-                                            <td className="px-2 py-1.5 font-mono font-bold text-xs">{p.current_bid ? `₹${Number(p.current_bid).toLocaleString("en-IN")}` : "-"}</td>
-                                        </>
-                                    )}
-                                />
+                                {(() => {
+                                    const handleSort = (key: string) => {
+                                        if (sortKey === key) {
+                                            setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+                                        } else {
+                                            setSortKey(key);
+                                            setSortDirection(key === "number" ? "asc" : "desc");
+                                        }
+                                    };
+
+                                    const sortedPlots = [...plots].sort((a, b) => {
+                                        const modifier = sortDirection === "asc" ? 1 : -1;
+                                        if (sortKey === "number") return (a.number - b.number) * modifier;
+                                        if (sortKey === "plot_type") return (a.plot_type || "").localeCompare(b.plot_type || "") * modifier;
+                                        if (sortKey === "actual_area") return ((a.actual_area || 0) - (b.actual_area || 0)) * modifier;
+                                        if (sortKey === "base_price") return ((a.base_price || 0) - (b.base_price || 0)) * modifier;
+                                        if (sortKey === "round_adjustment") return ((a.round_adjustment || 0) - (b.round_adjustment || 0)) * modifier;
+                                        if (sortKey === "status") return (a.status || "").localeCompare(b.status || "") * modifier;
+                                        if (sortKey === "winner_team") return getTeamName(a.winner_team_id).localeCompare(getTeamName(b.winner_team_id)) * modifier;
+                                        if (sortKey === "current_bid") return ((Number(a.current_bid) || 0) - (Number(b.current_bid) || 0)) * modifier;
+                                        return 0;
+                                    });
+
+                                    const tableHeaders = [
+                                        { key: "number", label: "#" },
+                                        { key: "plot_type", label: "Type" },
+                                        { key: "actual_area", label: "Area" },
+                                        { key: "base_price", label: "Base" },
+                                        { key: "round_adjustment", label: "Adj." },
+                                        { key: "status", label: "Status" },
+                                        { key: "winner_team", label: "Team" },
+                                        { key: "current_bid", label: "Bid" },
+                                    ];
+
+                                    return (
+                                        <NeoTable
+                                            headers={tableHeaders}
+                                            data={sortedPlots}
+                                            onSort={handleSort}
+                                            sortKey={sortKey}
+                                            sortDirection={sortDirection}
+                                            renderRow={(p) => (
+                                                <>
+                                                    <td className="px-2 py-1.5 font-bold bg-[var(--color-bg)] text-sm">{p.number}</td>
+                                                    <td className="px-2 py-1.5 text-xs font-bold uppercase">{p.plot_type || "-"}</td>
+                                                    <td className="px-2 py-1.5 font-mono text-xs">{p.actual_area?.toLocaleString() || "-"}</td>
+                                                    <td className="px-2 py-1.5 font-mono text-xs">₹{p.base_price?.toLocaleString() || "-"}</td>
+                                                    <td className={`px-2 py-1.5 font-mono text-xs font-bold ${(p.round_adjustment || 0) > 0 ? "text-[var(--color-success)]" : (p.round_adjustment || 0) < 0 ? "text-[var(--color-danger)]" : ""}`}>
+                                                        {Number(p.round_adjustment) !== 0 ? `${p.round_adjustment > 0 ? "+" : ""}₹${Number(p.round_adjustment).toLocaleString("en-IN")}` : "-"}
+                                                    </td>
+                                                    <td className="px-2 py-1.5">
+                                                        <NeoBadge variant={
+                                                            p.status === "sold" ? "success" :
+                                                                p.status === "active" ? "info" : "neutral"
+                                                        }>
+                                                            {p.status}
+                                                        </NeoBadge>
+                                                    </td>
+                                                    <td className="px-2 py-1.5 text-xs font-bold uppercase">{getTeamName(p.winner_team_id)}</td>
+                                                    <td className="px-2 py-1.5 font-mono font-bold text-xs">{p.current_bid ? `₹${Number(p.current_bid).toLocaleString("en-IN")}` : "-"}</td>
+                                                </>
+                                            )}
+                                        />
+                                    );
+                                })()}
                             </div>
                         </NeoCard>
                     </div>
                 </div>
+
+                {/* Mobile FAB */}
+                <button
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-[var(--color-primary)] text-white rounded-full flex items-center justify-center border-4 border-[var(--color-border)] shadow-[4px_4px_0_var(--color-border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+                >
+                    <Menu size={24} />
+                </button>
+
+                {/* Mobile Sidebar Overlay */}
+                {isSidebarOpen && (
+                    <div className="fixed inset-0 z-50 flex">
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />
+                        <div className="relative ml-auto w-[85%] max-w-sm h-full bg-[var(--color-bg)] border-l-4 border-[var(--color-border)] shadow-[-8px_0_0_rgba(0,0,0,0.5)] flex flex-col pointer-events-auto overflow-hidden animate-in slide-in-from-right duration-200">
+                            <div className="flex justify-between items-center p-4 border-b-4 border-[var(--color-border)] bg-[var(--color-surface)] shrink-0">
+                                <h2 className="font-black text-xl uppercase">Extra Info</h2>
+                                <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-white border-2 border-transparent hover:border-black transition-colors rounded-sm">
+                                    <X size={24} />
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-20">
+                                {/* Current Plot View - Clickable */}
+                                <NeoCard className="p-0 overflow-hidden relative bg-[var(--color-bg)] cursor-pointer hover:shadow-none translate-x-[2px] translate-y-[2px] transition-all hover:-translate-x-0 hover:-translate-y-0"
+                                    onClick={() => setIsImageModalOpen(true)}>
+                                    <h3 className="text-sm font-black uppercase m-2 flex items-center gap-2">
+                                        <MapPin size={16} className="text-[var(--color-secondary)]" /> Current Plot Mode
+                                    </h3>
+                                    <div className="relative w-full aspect-square bg-gray-100 border-t-2 border-[var(--color-border)]">
+                                        <div className="absolute inset-0 pointer-events-none p-2 w-full h-full opacity-70">
+                                            <CityMap currentPlotNumber={currentPlot?.number} />
+                                        </div>
+                                        <div className="absolute top-2 right-2">
+                                            <NeoBadge variant="info">Plot #{currentPlot?.number || "-"}</NeoBadge>
+                                        </div>
+                                        <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                            <div className="bg-white font-black text-xs uppercase px-2 py-1 border-2 border-black">Click Fullscreen</div>
+                                        </div>
+                                    </div>
+                                </NeoCard>
+
+                                {/* Header-style connection count for sidebar */}
+                                <div className="flex items-center gap-2 neo-border px-4 py-2 bg-[var(--color-surface)]">
+                                    <Users size={20} className="text-[var(--color-secondary)]" />
+                                    <div className="flex-1">
+                                        <span className="font-black text-xl leading-none block">{connectedCount}</span>
+                                        <span className="font-bold uppercase text-[10px] block opacity-70">Online Users</span>
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    {connectedTeams.length > 0 ? connectedTeams.map((name, i) => (
+                                        <div key={i} className="flex items-center gap-2 bg-[var(--color-bg)] p-1.5 border border-[var(--color-border)] font-bold text-xs">
+                                            <span className="w-2 h-2 bg-[var(--color-success)] border border-[var(--color-border)]" />
+                                            <span>{name}</span>
+                                        </div>
+                                    )) : (
+                                        <p className="text-[var(--color-text)] opacity-50 text-xs italic border border-dashed border-[var(--color-border)] p-2">No one connected</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Full Screen Image Modal */}
+                {isImageModalOpen && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setIsImageModalOpen(false)} />
+                        <div className="relative w-full max-w-5xl h-[80vh] bg-[var(--color-bg)] p-2 neo-border flex flex-col pointer-events-auto shadow-[12px_12px_0_rgba(0,0,0,1)]">
+                            <div className="flex justify-between items-center bg-[var(--color-primary)] text-white p-2 border-2 border-black mb-2 shrink-0">
+                                <h2 className="font-black text-lg uppercase flex items-center gap-2">
+                                    <MapPin size={20} /> Plot Map
+                                </h2>
+                                <button onClick={() => setIsImageModalOpen(false)} className="hover:bg-black/20 p-1 rounded-sm">
+                                    <X size={24} />
+                                </button>
+                            </div>
+                            <div className="flex-1 bg-white border-2 border-[var(--color-border)] relative overflow-hidden flex items-center justify-center p-4">
+                                <CityMap currentPlotNumber={currentPlot?.number} />
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
-        </NeoLayout>
+        </NeoLayout >
     );
 }

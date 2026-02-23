@@ -30,11 +30,11 @@ export default function NeoModal({ isOpen, onClose, title, children }: NeoModalP
                         className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg z-50"
                     >
                         <div className="bg-[var(--color-bg)] neo-border p-6 shadow-[8px_8px_0_var(--neo-shadow-color)] relative">
-                            <div className="flex justify-between items-center mb-6 border-b-4 border-black pb-2">
+                            <div className="flex justify-between items-center mb-6 border-b-4 border-[var(--color-border)] pb-2">
                                 {title && <h2 className="text-xl font-bold uppercase">{title}</h2>}
                                 <button
                                     onClick={onClose}
-                                    className="hover:bg-red-500 hover:text-white p-1 transition-colors neo-border"
+                                    className="hover:bg-[var(--color-danger)] hover:text-white p-1 transition-colors neo-border"
                                 >
                                     <X size={24} />
                                 </button>
