@@ -111,6 +111,9 @@ export default function Dashboard() {
     const [rebidOffers, setRebidOffers] = useState<any[]>([]);
     const [markupInput, setMarkupInput] = useState<Record<number, string>>({});
 
+    // Track adjustments from the CURRENT policy only: { plotNumber: deltaAmount }
+    const [recentAdjustments, setRecentAdjustments] = useState<Record<number, number>>({});
+
     // 1. Check Auth & Load Initial Data
     useEffect(() => {
         const teamId = localStorage.getItem("team_id");
@@ -147,6 +150,15 @@ export default function Dashboard() {
                     }
                     if (stateData.current_question) {
                         setActiveQuestion(stateData.current_question);
+                    }
+
+                    // Load persisted current policy deltas from backend
+                    if (stateData.current_policy_deltas && Object.keys(stateData.current_policy_deltas).length > 0) {
+                        const adjMap: Record<number, number> = {};
+                        for (const [key, val] of Object.entries(stateData.current_policy_deltas)) {
+                            adjMap[Number(key)] = Number(val);
+                        }
+                        setRecentAdjustments(adjMap);
                     }
                 }
 
@@ -231,9 +243,25 @@ export default function Dashboard() {
         const handlePlotAdjustment = (data: any) => {
             console.log("Plot Adjustment:", data);
             if (data.plot) {
-                setPlots(prev => prev.map(p =>
-                    p.number === data.plot_number ? { ...p, ...data.plot } : p
-                ));
+                // Compute the delta for this specific policy application
+                setPlots(prev => {
+                    const oldPlot = prev.find(p => p.number === data.plot_number);
+                    const oldAdj = Number(oldPlot?.round_adjustment || 0);
+                    const newAdj = Number(data.plot.round_adjustment || 0);
+                    const delta = newAdj - oldAdj;
+
+                    // Track this delta in recentAdjustments
+                    if (delta !== 0) {
+                        setRecentAdjustments(ra => ({
+                            ...ra,
+                            [data.plot_number]: (ra[data.plot_number] || 0) + delta
+                        }));
+                    }
+
+                    return prev.map(p =>
+                        p.number === data.plot_number ? { ...p, ...data.plot } : p
+                    );
+                });
                 if (currentPlot?.number === data.plot_number) {
                     setCurrentPlot((prev: any) => prev ? { ...prev, ...data.plot } : null);
                 }
@@ -245,9 +273,15 @@ export default function Dashboard() {
         };
 
         const handleTeamUpdate = (data: any) => {
-            if ((data.id || data.team_id) === userTeam.id) {
+            const dataId = String(data.id || data.team_id);
+            // Update user's own team budget
+            if (dataId === String(userTeam.id)) {
                 setUserTeam((prev: any) => prev ? { ...prev, spent: data.spent, budget: data.budget, plots_won: data.plots_won } : null);
             }
+            // Also update the allTeams array so sidebar/leaderboard stays in sync
+            setAllTeams(prev => prev.map(t =>
+                String(t.id) === dataId ? { ...t, spent: data.spent, budget: data.budget, plots_won: data.plots_won } : t
+            ));
         };
 
         const handlePlotUpdate = (data: any) => {
@@ -260,6 +294,8 @@ export default function Dashboard() {
         const handleActiveQuestion = (data: any) => {
             console.log("Active Question Update:", data);
             setActiveQuestion(data.question);
+            // Clear recent adjustments when a new policy question is pushed
+            setRecentAdjustments({});
         };
 
         socket.on("auction_state_update", handleStateUpdate);
@@ -412,7 +448,7 @@ export default function Dashboard() {
                 ) : auctionStatus !== "running" && auctionStatus !== "selling" ? (
                     /* NOT RUNNING: Show only grayscale plot image */
                     <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
-                        <NeoCard className="p-0 overflow-hidden relative bg-[var(--color-bg)] w-full max-w-3xl h-full">
+                        <NeoCard className="p-0 overflow-hidden relative bg-[var(--color-bg)] w-full max-w-3xl aspect-square lg:aspect-auto lg:h-full">
                             <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/30">
                                 <div className="text-center">
                                     <MapPin size={64} className="mx-auto mb-3 text-white opacity-70" />
@@ -425,7 +461,7 @@ export default function Dashboard() {
                                 </div>
                             </div>
                             <div className="absolute inset-0 pointer-events-none p-4 opacity-50">
-                                <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} />
+                                <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} recentAdjustments={recentAdjustments} />
                             </div>
                         </NeoCard>
                     </div>
@@ -446,7 +482,7 @@ export default function Dashboard() {
 
                             <NeoCard className="flex-1 min-h-[300px] lg:min-h-0 p-0 overflow-hidden relative bg-[var(--color-bg)]">
                                 <div className="absolute inset-0 p-2 sm:p-4">
-                                    <CityMap currentPlotNumber={undefined} plots={plots} allTeams={allTeams} />
+                                    <CityMap currentPlotNumber={undefined} plots={plots} allTeams={allTeams} recentAdjustments={recentAdjustments} />
                                 </div>
                             </NeoCard>
                         </div>

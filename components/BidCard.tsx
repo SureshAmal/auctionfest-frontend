@@ -182,10 +182,14 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
         );
     }
 
-    const effectivePrice = (Number(currentPlot.current_bid) || Number(currentPlot.total_plot_price) || 0) + (Number(currentPlot.round_adjustment) || 0);
-    const minBid = currentPlot.current_bid
-        ? effectivePrice + 100
-        : (effectivePrice || 1000);
+    // Actual bid placed (without adjustment)
+    const actualBid = Number(currentPlot.current_bid) || 0;
+    // Adjusted total value of the plot (for display as starting/base price)
+    const adjustedValue = (Number(currentPlot.current_bid) || Number(currentPlot.total_plot_price) || 0) + (Number(currentPlot.round_adjustment) || 0);
+    // Min bid is based on actual bid, not adjusted value
+    const minBid = actualBid > 0
+        ? actualBid + 100
+        : (adjustedValue || 1000);
     /** Convert number to Indian words (Crore, Lakh, Thousand). */
     const numberToIndianWords = (num: number): string => {
         if (!num || num <= 0) return "";
@@ -232,10 +236,10 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
             <div className="space-y-4">
                 {/* Current Price / Highest Bid */}
                 <div className="neo-border p-3 bg-[var(--color-surface)]">
-                    <p className="text-xs font-bold uppercase mb-1">{currentPlot.current_bid ? "Current Highest Bid" : "Current Price"}</p>
+                    <p className="text-xs font-bold uppercase mb-1">{actualBid > 0 ? "Current Highest Bid" : "Starting Price"}</p>
                     <div className="flex items-baseline justify-between">
                         <span className="text-3xl font-black">
-                            ₹ {effectivePrice.toLocaleString("en-IN")}
+                            ₹ {(actualBid > 0 ? actualBid : adjustedValue).toLocaleString("en-IN")}
                         </span>
                         {currentPlot.winner_team_id && (
                             <span className="text-xs font-bold uppercase bg-black text-white px-2 py-0.5">

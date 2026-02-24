@@ -614,10 +614,10 @@ export default function AdminPage() {
                     </div>
 
                     {/* Right: Plot Status Table - full remaining space */}
-                    <div className="lg:col-span-3 min-h-0 overflow-hidden flex flex-col">
+                    <div className="lg:col-span-3 min-h-0 min-w-0 overflow-hidden flex flex-col">
                         <NeoCard className="flex-1 flex flex-col min-h-0 overflow-hidden">
                             <h3 className="text-sm font-black uppercase mb-2">Plot Status</h3>
-                            <div className="flex-1 min-h-0 overflow-y-auto">
+                            <div className="flex-1 min-h-0 overflow-auto">
                                 {(() => {
                                     const tableColumns: ColumnDef<Plot>[] = [
                                         { accessorKey: "number", header: "#", cell: ({ row }) => <span className="font-bold bg-[var(--color-bg)] text-sm">{row.original.number}</span> },
