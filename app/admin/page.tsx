@@ -100,6 +100,9 @@ export default function AdminPage() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
+    // Round 4 sell offers
+    const [sellOffers, setSellOffers] = useState<any[]>([]);
+
     // Fetch Data
     useEffect(() => {
         const fetchData = async () => {
@@ -129,6 +132,20 @@ export default function AdminPage() {
         const interval = setInterval(fetchData, 5000);
         return () => clearInterval(interval);
     }, []);
+
+    // Fetch sell offers during Round 4
+    useEffect(() => {
+        if (currentRound !== 4) { setSellOffers([]); return; }
+        const fetchOffers = async () => {
+            try {
+                const res = await fetch("/api/rebid/offers");
+                if (res.ok) setSellOffers(await res.json());
+            } catch (e) { console.error(e); }
+        };
+        fetchOffers();
+        const interval = setInterval(fetchOffers, 3000);
+        return () => clearInterval(interval);
+    }, [currentRound]);
 
     // Fetch Questions when round changes to a policy round
     useEffect(() => {
@@ -546,6 +563,21 @@ export default function AdminPage() {
                                 </div>
                             )}
 
+                            {/* Round 4 Sell Offers Table */}
+                            {currentRound === 4 && sellOffers.length > 0 && (
+                                <div className="neo-border p-2 bg-[var(--color-bg)] mb-3">
+                                    <h3 className="text-xs font-black uppercase mb-2 opacity-60">📋 Listed for Sale ({sellOffers.length})</h3>
+                                    <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                                        {sellOffers.map((offer: any) => (
+                                            <div key={offer.id} className="flex justify-between items-center bg-[var(--color-surface)] neo-border px-2 py-1 text-xs">
+                                                <span className="font-black">#{offer.plot_number}</span>
+                                                <span className="font-bold text-[var(--color-primary)] truncate max-w-[100px]">{offer.team_name}</span>
+                                                <span className="font-mono font-bold">₹{Number(offer.asking_price).toLocaleString("en-IN")}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                             {/* End Game Button (visible on round 6) */}
                             {currentRound >= 6 && auctionState?.status !== "completed" && (
                                 <div className="neo-border p-2 bg-red-100 mb-3">

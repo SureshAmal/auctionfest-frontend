@@ -337,6 +337,11 @@ export default function Dashboard() {
             }
         });
 
+        // Handle cancelled offers (unsell)
+        socket.on("rebid_offer_cancelled", (offer: any) => {
+            setRebidOffers(prev => prev.filter(o => o.id !== offer.id));
+        });
+
         return () => {
             socket.off("auction_state_update");
             socket.off("new_bid");
@@ -350,6 +355,7 @@ export default function Dashboard() {
             socket.off("new_rebid_offer");
             socket.off("rebid_offer_sold");
             socket.off("round4_phase_update");
+            socket.off("rebid_offer_cancelled");
         };
     }, [socket, userTeam]);
 
@@ -537,8 +543,13 @@ export default function Dashboard() {
                                     <Activity size={20} /> Team Overview
                                 </h3>
                                 <div className="space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
-                                    {[...allTeams].sort((a, b) => b.plots_won - a.plots_won || parseFloat(b.spent || 0) - parseFloat(a.spent || 0)).map((team, idx) => {
+                                    {[...allTeams].map(team => {
                                         const remaining = Number(team.budget) - Number(team.spent || 0);
+                                        const portfolioValue = plots
+                                            .filter(p => p.winner_team_id === team.id && p.status === 'sold')
+                                            .reduce((sum, p) => sum + (Number(p.current_bid || p.total_plot_price || 0) + Number(p.round_adjustment || 0)), 0);
+                                        return { ...team, remaining, portfolioValue, netWorth: remaining + portfolioValue };
+                                    }).sort((a, b) => b.netWorth - a.netWorth).map((team, idx) => {
                                         return (
                                             <div key={team.id} className="flex flex-col bg-[var(--color-surface)] p-2 neo-border">
                                                 <div className="flex justify-between items-center mb-1">
@@ -546,8 +557,8 @@ export default function Dashboard() {
                                                     <span className="font-bold text-xs text-[var(--color-success)] tracking-wider">★ {team.plots_won} WON</span>
                                                 </div>
                                                 <div className="flex justify-between items-center pt-1 border-t-2 border-[var(--color-border)]">
-                                                    <span className="text-xs font-bold opacity-60 uppercase">Funds</span>
-                                                    <span className="font-mono text-sm font-black">₹{remaining.toLocaleString("en-IN")}</span>
+                                                    <span className="text-xs font-bold opacity-60 uppercase">Net Worth</span>
+                                                    <span className="font-mono text-sm font-black">₹{team.netWorth.toLocaleString("en-IN")}</span>
                                                 </div>
                                             </div>
                                         );
@@ -572,7 +583,8 @@ export default function Dashboard() {
                                     )}
                                     {plots.filter(p => p.winner_team_id === userTeam.id && p.status?.toLowerCase() === 'sold').map(plot => {
                                         const currentValue = (parseFloat(plot.current_bid || plot.total_plot_price || 0) + parseFloat(plot.round_adjustment || 0));
-                                        const maxAllowed = currentValue * 1.07;
+                                        const basePrice = parseFloat(plot.current_bid || plot.total_plot_price || 0);
+                                        const maxAllowed = currentValue * 1.10;
                                         const activeOffer = rebidOffers.find(o => o.plot_number === plot.number && o.status === "active");
 
                                         return (
@@ -583,17 +595,38 @@ export default function Dashboard() {
                                                 </div>
 
                                                 {activeOffer ? (
-                                                    <div className="bg-[var(--color-warning)] p-2 neo-border flex justify-between items-center text-black">
-                                                        <span className="text-xs font-bold uppercase">Listed for ₹{activeOffer.asking_price.toLocaleString("en-IN")}</span>
-                                                        <span className="text-[10px] font-black animate-pulse">WAITING FOR BUYER...</span>
+                                                    <div className="bg-[var(--color-warning)] p-2 neo-border flex justify-between items-center text-black gap-2">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs font-bold uppercase">Listed for ₹{Number(activeOffer.asking_price).toLocaleString("en-IN")}</span>
+                                                            <span className="text-[10px] font-black animate-pulse">WAITING FOR BUYER...</span>
+                                                        </div>
+                                                        <NeoButton
+                                                            variant="danger"
+                                                            className="text-[10px] py-1 px-2 shrink-0"
+                                                            onClick={async () => {
+                                                                try {
+                                                                    const res = await fetch("/api/rebid/cancel-offer", {
+                                                                        method: "POST",
+                                                                        headers: { "Content-Type": "application/json" },
+                                                                        body: JSON.stringify({
+                                                                            offer_id: activeOffer.id,
+                                                                            team_id: userTeam.id
+                                                                        })
+                                                                    });
+                                                                    if (!res.ok) alert((await res.json()).detail);
+                                                                } catch (e) { console.error(e); }
+                                                            }}
+                                                        >
+                                                            UNSELL
+                                                        </NeoButton>
                                                     </div>
                                                 ) : (
                                                     <div className="flex gap-2">
                                                         <input
                                                             type="number"
-                                                            placeholder={`₹${Math.floor(currentValue)} - ₹${Math.floor(maxAllowed)}`}
+                                                            placeholder={`₹${Math.floor(basePrice)} - ₹${Math.floor(maxAllowed)}`}
                                                             className="neo-input flex-1 text-sm py-1 px-2 min-w-0 bg-[var(--color-bg)]"
-                                                            value={markupInput[plot.number] ?? Math.floor(currentValue)}
+                                                            value={markupInput[plot.number] ?? Math.floor(basePrice)}
                                                             onChange={(e) => setMarkupInput(prev => ({ ...prev, [plot.number]: e.target.value }))}
                                                             max={maxAllowed}
                                                         />
@@ -602,7 +635,7 @@ export default function Dashboard() {
                                                             className="text-xs py-1 px-3"
                                                             onClick={async () => {
                                                                 const price = parseFloat(markupInput[plot.number]);
-                                                                if (!price || price > Math.floor(maxAllowed) || price < Math.floor(currentValue)) return alert(`Invalid price! Must be between ₹${Math.floor(currentValue).toLocaleString("en-IN")} and ₹${Math.floor(maxAllowed).toLocaleString("en-IN")}`);
+                                                                if (!price || price > Math.floor(maxAllowed) || price < 1) return alert(`Invalid price! Max: ₹${Math.floor(maxAllowed).toLocaleString("en-IN")}`);
 
                                                                 try {
                                                                     const res = await fetch("/api/rebid/offer", {
