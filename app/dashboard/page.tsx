@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSocket } from "../../context/socket-context";
 import BidCard from "../../components/BidCard";
@@ -127,20 +127,21 @@ export default function Dashboard() {
 
         const fetchData = async () => {
             try {
-                const teamRes = await fetch(`/api/data/team/${teamId}`);
+                const t = Date.now();
+                const teamRes = await fetch(`/api/data/team/${teamId}?t=${t}`, { cache: "no-store" });
                 if (teamRes.ok) setUserTeam(await teamRes.json());
 
-                const allTeamsRes = await fetch("/api/data/teams");
+                const allTeamsRes = await fetch(`/api/data/teams?t=${t}`, { cache: "no-store" });
                 if (allTeamsRes.ok) setAllTeams(await allTeamsRes.json());
 
                 let plotsData: any[] = [];
-                const plotsRes = await fetch("/api/data/plots");
+                const plotsRes = await fetch(`/api/data/plots?t=${t}`, { cache: "no-store" });
                 if (plotsRes.ok) {
                     plotsData = await plotsRes.json();
                     setPlots(plotsData);
                 }
 
-                const stateRes = await fetch("/api/admin/state");
+                const stateRes = await fetch(`/api/admin/state?t=${t}`, { cache: "no-store" });
                 if (stateRes.ok) {
                     const stateData = await stateRes.json();
                     setAuctionStatus(stateData.status);
@@ -196,11 +197,25 @@ export default function Dashboard() {
         }
         return () => clearInterval(interval);
     }, [auctionStatus]);
+    // -----------------------------------------------------
+
+    // Refs to access latest state inside socket handlers without adding them to dependencies
+    const userTeamRef = useRef(userTeam);
+    const currentPlotRef = useRef(currentPlot);
+
+    useEffect(() => {
+        userTeamRef.current = userTeam;
+    }, [userTeam]);
+
+    useEffect(() => {
+        currentPlotRef.current = currentPlot;
+    }, [currentPlot]);
 
     // 2. Socket Listeners
     useEffect(() => {
-        if (!socket || !userTeam) return;
+        if (!socket || !userTeam?.id) return;
 
+        // Only join once
         socket.emit("join_auction", { team_id: userTeam.id });
 
         const handleStateUpdate = (data: any) => {
@@ -270,7 +285,7 @@ export default function Dashboard() {
                         p.number === data.plot_number ? { ...p, ...data.plot } : p
                     );
                 });
-                if (currentPlot?.number === data.plot_number) {
+                if (currentPlotRef.current?.number === data.plot_number) {
                     setCurrentPlot((prev: any) => prev ? { ...prev, ...data.plot } : null);
                 }
             }
@@ -282,13 +297,14 @@ export default function Dashboard() {
 
         const handleTeamUpdate = (data: any) => {
             const dataId = String(data.id || data.team_id);
-            // Use functional updater so we compare against latest state, not stale closure
-            setUserTeam((prev: any) => {
-                if (prev && String(prev.id) === dataId) {
-                    return { ...prev, spent: data.spent, budget: data.budget, plots_won: data.plots_won };
-                }
-                return prev;
-            });
+
+            // We read the current userTeam ID from the ref to avoid dependency cycles
+            const myTeamId = userTeamRef.current ? String(userTeamRef.current.id) : null;
+
+            if (myTeamId === dataId) {
+                setUserTeam((prev: any) => prev ? { ...prev, spent: data.spent, budget: data.budget, plots_won: data.plots_won } : null);
+            }
+
             // Also update the allTeams array so sidebar/leaderboard stays in sync
             setAllTeams(prev => prev.map(t =>
                 String(t.id) === dataId ? { ...t, spent: data.spent, budget: data.budget, plots_won: data.plots_won } : t
@@ -297,7 +313,7 @@ export default function Dashboard() {
 
         const handlePlotUpdate = (data: any) => {
             setPlots(prev => prev.map(p => p.number === data.number ? { ...p, ...data } : p));
-            if (currentPlot?.number === data.number) {
+            if (currentPlotRef.current?.number === data.number) {
                 setCurrentPlot((prev: any) => prev ? { ...prev, ...data } : null);
             }
         };
@@ -357,7 +373,7 @@ export default function Dashboard() {
             socket.off("round4_phase_update");
             socket.off("rebid_offer_cancelled");
         };
-    }, [socket, userTeam]);
+    }, [socket, userTeam?.id]); // Only depend on ID, not the whole object, to prevent reconnects on budget updates
 
     /** Get team name from ID. */
     const getTeamName = (id: string) => {
@@ -401,7 +417,7 @@ export default function Dashboard() {
                     <div className="flex flex-wrap gap-2 sm:gap-4 items-center justify-end">
                         {(() => {
                             const remainingCash = Number(userTeam.budget) - Number(userTeam.spent || 0) -
-                                (currentPlot?.winner_team_id === userTeam.id ? Number(currentPlot?.current_bid || 0) : 0);
+                                (currentPlot?.winner_team_id === userTeam.id && currentPlot?.status === "active" ? Number(currentPlot?.current_bid || 0) : 0);
                             const portfolioValue = plots
                                 .filter(p => p.winner_team_id === userTeam.id && p.status === 'sold')
                                 .reduce((sum, p) => sum + (Number(p.current_bid || p.total_plot_price || 0) + Number(p.round_adjustment || 0)), 0);
@@ -544,7 +560,8 @@ export default function Dashboard() {
                                 </h3>
                                 <div className="space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
                                     {[...allTeams].map(team => {
-                                        const remaining = Number(team.budget) - Number(team.spent || 0);
+                                        const remaining = Number(team.budget) - Number(team.spent || 0) -
+                                            (currentPlot?.winner_team_id === team.id && currentPlot?.status === "active" ? Number(currentPlot?.current_bid || 0) : 0);
                                         const portfolioValue = plots
                                             .filter(p => p.winner_team_id === team.id && p.status === 'sold')
                                             .reduce((sum, p) => sum + (Number(p.current_bid || p.total_plot_price || 0) + Number(p.round_adjustment || 0)), 0);
@@ -571,8 +588,8 @@ export default function Dashboard() {
                     /* REBID MARKETPLACE SCREEN */
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 flex-1 min-h-0 overflow-hidden">
 
-                        {/* LEFT: Portfolio (Sell) */}
-                        <div className="lg:col-span-6 flex flex-col gap-3 min-h-0">
+                        {/* Portfolio (Sell) */}
+                        <div className="lg:col-span-12 w-full max-w-3xl mx-auto flex flex-col gap-3 min-h-0">
                             <NeoCard className="flex flex-col h-full bg-[var(--color-bg)]">
                                 <h2 className="text-lg font-black uppercase mb-3 flex items-center gap-2 text-[var(--color-primary)]">
                                     <MapPin size={20} /> My Portfolio
@@ -663,67 +680,7 @@ export default function Dashboard() {
                             </NeoCard>
                         </div>
 
-                        {/* RIGHT: Open Market (Buy) */}
-                        <div className="lg:col-span-6 flex flex-col gap-3 min-h-0">
-                            <NeoCard className="flex flex-col h-full bg-[var(--color-bg)]">
-                                <h2 className="text-lg font-black uppercase mb-3 flex items-center gap-2 text-[var(--color-success)]">
-                                    <Activity size={20} /> Open Market
-                                </h2>
-                                <div className="space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
-                                    {rebidOffers.filter(o => o.status === "active").length === 0 && (
-                                        <p className="text-sm font-bold opacity-50 p-4 text-center">No plots currently listed for sale.</p>
-                                    )}
-                                    {rebidOffers.filter(o => o.status === "active").map(offer => {
-                                        const isMine = offer.offering_team_id === userTeam.id;
-                                        const remaining = Number(userTeam.budget) - Number(userTeam.spent || 0);
-                                        const canAfford = remaining >= offer.asking_price;
 
-                                        return (
-                                            <div key={offer.id} className="flex flex-col bg-[var(--color-surface)] p-3 neo-border">
-                                                <div className="flex justify-between items-center mb-2">
-                                                    <span className="font-black text-sm uppercase flex items-center gap-2">
-                                                        <MapPin size={14} /> Plot #{offer.plot_number}
-                                                    </span>
-                                                    <span className="font-black text-sm text-[var(--color-success)] tracking-wider">
-                                                        ₹{offer.asking_price.toLocaleString("en-IN")}
-                                                    </span>
-                                                </div>
-                                                <div className="flex justify-between items-center pt-2 border-t-2 border-[var(--color-border)]">
-                                                    <span className="text-[10px] font-bold opacity-60 uppercase">
-                                                        Seller: {getTeamName(offer.offering_team_id)}
-                                                    </span>
-                                                    {isMine ? (
-                                                        <span className="text-[10px] font-black text-[var(--color-warning)] p-1 bg-[var(--color-warning)]/20 border-2 border-[var(--color-warning)] whitespace-nowrap">YOUR LISTING</span>
-                                                    ) : (
-                                                        <NeoButton
-                                                            variant="success"
-                                                            className="text-xs py-1 px-4 border-2"
-                                                            disabled={!canAfford}
-                                                            onClick={async () => {
-                                                                if (!confirm(`Buy Plot #${offer.plot_number} for ₹${offer.asking_price}?`)) return;
-                                                                try {
-                                                                    const res = await fetch("/api/rebid/buy", {
-                                                                        method: "POST",
-                                                                        headers: { "Content-Type": "application/json" },
-                                                                        body: JSON.stringify({
-                                                                            team_id: userTeam.id,
-                                                                            offer_id: offer.id
-                                                                        })
-                                                                    });
-                                                                    if (!res.ok) alert((await res.json()).detail);
-                                                                } catch (e) { console.error(e); }
-                                                            }}
-                                                        >
-                                                            {canAfford ? "BUY" : "NO FUNDS"}
-                                                        </NeoButton>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </NeoCard>
-                        </div>
                     </div>
                 ) : (
                     /* RUNNING (Standard): Show 3-column layout */

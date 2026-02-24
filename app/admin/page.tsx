@@ -107,10 +107,11 @@ export default function AdminPage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
+                const t = Date.now();
                 const [plotsRes, teamsRes, stateRes] = await Promise.all([
-                    fetch("/api/data/plots"),
-                    fetch("/api/data/teams"),
-                    fetch("/api/admin/state"),
+                    fetch(`/api/data/plots?t=${t}`, { cache: "no-store" }),
+                    fetch(`/api/data/teams?t=${t}`, { cache: "no-store" }),
+                    fetch(`/api/admin/state?t=${t}`, { cache: "no-store" }),
                 ]);
 
                 if (plotsRes.ok) setPlots(await plotsRes.json());
