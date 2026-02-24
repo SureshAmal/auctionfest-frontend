@@ -171,10 +171,10 @@ export default function Dashboard() {
                     }
                 }
 
-                const bidsRes = await fetch("/api/data/bids/recent");
+                const bidsRes = await fetch(`/api/data/bids/recent?t=${t}`, { cache: "no-store" });
                 if (bidsRes.ok) setRecentBids(await bidsRes.json());
 
-                const offersRes = await fetch("/api/data/rebid-offers");
+                const offersRes = await fetch(`/api/data/rebid-offers?t=${t}`, { cache: "no-store" });
                 if (offersRes.ok) setRebidOffers(await offersRes.json());
 
             } catch (e) {
@@ -193,7 +193,7 @@ export default function Dashboard() {
             setSellCountdown(3);
             interval = setInterval(() => {
                 setSellCountdown(prev => (prev > 1 ? prev - 1 : 1));
-            }, 1000);
+            }, 2000);
         }
         return () => clearInterval(interval);
     }, [auctionStatus]);
