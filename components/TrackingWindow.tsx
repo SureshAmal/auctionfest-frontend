@@ -1,6 +1,6 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Activity, X, Gavel, DollarSign } from "lucide-react";
+import { Activity, X, Gavel, DollarSign, MapPin } from "lucide-react";
 import NeoBadge from "./neo/NeoBadge";
 import NeoButton from "./neo/NeoButton";
 import CityMap from "@/components/map/CityMap";
@@ -12,13 +12,31 @@ interface TrackingWindowProps {
     status: string; // 'not_started', 'running', 'paused', 'completed'
     plots?: any[];
     allTeams?: any[];
+    userTeam?: any;
 }
 
-export default function TrackingWindow({ currentPlot, status, plots = [], allTeams = [] }: TrackingWindowProps) {
+export default function TrackingWindow({ currentPlot, status, plots = [], allTeams = [], userTeam }: TrackingWindowProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [scale, setScale] = useState(1);
+    const [activeTab, setActiveTab] = useState<"my" | "all">("my");
     const containerRef = useRef(null);
+
+    // Track drag state to prevent click-on-drag
+    const isDragging = useRef(false);
+
+    /** Called on drag start — set flag. */
+    const handleDragStart = useCallback(() => {
+        isDragging.current = true;
+    }, []);
+
+    /** Called on click — only open if we weren't dragging. */
+    const handleClick = useCallback(() => {
+        if (!isDragging.current) {
+            setIsOpen(true);
+        }
+        isDragging.current = false;
+    }, []);
 
     // Calculate Sold Plots Ledger
     const soldPlots = useMemo(() => {
@@ -29,22 +47,84 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                 return {
                     plotNumber: p.number,
                     teamName: team ? team.name : p.winner_team_id,
-                    price: Number(p.current_bid) || 0
+                    price: Number(p.current_bid) || 0,
+                    adjustment: Number(p.round_adjustment || 0),
+                    currentValue: (Number(p.current_bid) || 0) + Number(p.round_adjustment || 0)
                 };
             });
     }, [plots, allTeams]);
 
+    // My team's owned plots
+    const myPlots = useMemo(() => {
+        if (!userTeam) return [];
+        return soldPlots.filter(p => {
+            const plot = plots.find(pp => pp.number === p.plotNumber);
+            return plot && plot.winner_team_id === userTeam.id;
+        });
+    }, [soldPlots, plots, userTeam]);
+
     const totalRevenue = soldPlots.reduce((sum, p) => sum + p.price, 0);
+    const myPortfolioValue = myPlots.reduce((sum, p) => sum + p.currentValue, 0);
+
+    const trackingColumns: ColumnDef<any>[] = [
+        {
+            accessorKey: "plotNumber",
+            header: "Plot #",
+            cell: ({ row }) => <div className="font-black text-center">#{row.original.plotNumber}</div>
+        },
+        {
+            accessorKey: "teamName",
+            header: () => <div className="text-center">Team</div>,
+            cell: ({ row }) => <div className="text-[var(--color-primary)] truncate max-w-[150px] text-center w-full">{row.original.teamName}</div>
+        },
+        {
+            accessorKey: "price",
+            header: () => <div className="text-center">Price</div>,
+            cell: ({ row }) => <div className="text-right font-mono w-full pr-4">₹ {row.original.price.toLocaleString("en-IN")}</div>
+        }
+    ];
+
+    const myPlotsColumns: ColumnDef<any>[] = [
+        {
+            accessorKey: "plotNumber",
+            header: "Plot #",
+            cell: ({ row }) => <div className="font-black text-center">#{row.original.plotNumber}</div>
+        },
+        {
+            accessorKey: "price",
+            header: () => <div className="text-center">Bought At</div>,
+            cell: ({ row }) => <div className="text-right font-mono w-full pr-2">₹{row.original.price.toLocaleString("en-IN")}</div>
+        },
+        {
+            accessorKey: "adjustment",
+            header: () => <div className="text-center">Adj</div>,
+            cell: ({ row }) => {
+                const adj = row.original.adjustment;
+                if (adj === 0) return <div className="text-center opacity-40">—</div>;
+                return (
+                    <div className={`text-right font-mono font-bold w-full pr-2 ${adj > 0 ? "text-green-600" : "text-red-600"}`}>
+                        {adj > 0 ? "+" : ""}₹{adj.toLocaleString("en-IN")}
+                    </div>
+                );
+            }
+        },
+        {
+            accessorKey: "currentValue",
+            header: () => <div className="text-center">Value</div>,
+            cell: ({ row }) => <div className="text-right font-mono font-black w-full pr-2">₹{row.original.currentValue.toLocaleString("en-IN")}</div>
+        }
+    ];
 
     return (
         <>
-            {/* The Floating Draggable Trigger */}
+            {/* The Floating Draggable Trigger — drag-safe */}
             <motion.div
                 drag
                 dragMomentum={false}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setIsOpen(true)}
+                onDragStart={handleDragStart}
+                onClick={handleClick}
                 className="fixed bottom-6 right-6 z-40 cursor-pointer"
             >
                 <div className="bg-[var(--color-primary)] text-white border-4 border-[var(--color-border)] shadow-[4px_4px_0_black] p-4 flex items-center gap-3 rounded-full">
@@ -81,7 +161,6 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                                 <div
                                     className="relative w-full h-full cursor-zoom-in group"
                                     onClick={() => {
-                                        console.log("Opening full screen");
                                         setIsFullScreen(true);
                                         setScale(1);
                                     }}
@@ -101,51 +180,53 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                                 </div>
                             </div>
 
-                            {/* 2. Header */}
-                            <div className="flex justify-between items-center px-6 py-4 border-b-4 border-[var(--color-border)] bg-[var(--color-surface)]">
-                                <div>
-                                    <h2 className="text-2xl font-black uppercase flex items-center gap-2">
-                                        <Gavel size={28} /> Auction Ledger
-                                    </h2>
-                                    <p className="text-xs font-bold uppercase mt-1 text-[var(--color-text)] opacity-60">
-                                        Total Revenue: ₹ {totalRevenue.toLocaleString("en-IN")}
-                                    </p>
-                                </div>
+                            {/* 2. Tab Header */}
+                            <div className="flex items-center border-b-4 border-[var(--color-border)] bg-[var(--color-surface)]">
+                                <button
+                                    onClick={() => setActiveTab("my")}
+                                    className={`flex-1 py-3 px-4 text-sm font-black uppercase flex items-center justify-center gap-2 transition-all border-b-4 -mb-[4px] ${activeTab === "my" ? "border-[var(--color-primary)] bg-[var(--color-bg)] text-[var(--color-primary)]" : "border-transparent hover:bg-[var(--color-bg)]/50 opacity-60"}`}
+                                >
+                                    <MapPin size={16} /> My Plots ({myPlots.length})
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab("all")}
+                                    className={`flex-1 py-3 px-4 text-sm font-black uppercase flex items-center justify-center gap-2 transition-all border-b-4 -mb-[4px] ${activeTab === "all" ? "border-[var(--color-primary)] bg-[var(--color-bg)] text-[var(--color-primary)]" : "border-transparent hover:bg-[var(--color-bg)]/50 opacity-60"}`}
+                                >
+                                    <Gavel size={16} /> All Sold ({soldPlots.length})
+                                </button>
                             </div>
 
-                            {/* 3. Scrollable List */}
+                            {/* 3. Tab Content */}
                             <div className="min-h-0 flex-1 relative bg-[var(--color-bg)] w-full overflow-y-auto">
-                                {soldPlots.length === 0 ? (
-                                    <div className="text-center py-10 text-[var(--color-text)] opacity-40 font-bold uppercase border-2 border-dashed border-[var(--color-border)] opacity-30">
-                                        No plots sold yet.
-                                    </div>
+                                {activeTab === "my" ? (
+                                    <>
+                                        {/* My plots summary bar */}
+                                        <div className="flex justify-between items-center px-4 py-2 bg-[var(--color-surface)] border-b-2 border-[var(--color-border)]">
+                                            <span className="text-xs font-bold uppercase opacity-60">Portfolio Value</span>
+                                            <span className="font-mono font-black text-lg">₹{myPortfolioValue.toLocaleString("en-IN")}</span>
+                                        </div>
+                                        {myPlots.length === 0 ? (
+                                            <div className="text-center py-10 text-[var(--color-text)] opacity-40 font-bold uppercase border-2 border-dashed border-[var(--color-border)] opacity-30 m-4">
+                                                You don&apos;t own any plots yet.
+                                            </div>
+                                        ) : (
+                                            <NeoTable columns={myPlotsColumns} data={myPlots} />
+                                        )}
+                                    </>
                                 ) : (
-                                    (() => {
-                                        const trackingColumns: ColumnDef<any>[] = [
-                                            {
-                                                accessorKey: "plotNumber",
-                                                header: "Plot #",
-                                                cell: ({ row }) => <div className="font-black text-center">#{row.original.plotNumber}</div>
-                                            },
-                                            {
-                                                accessorKey: "teamName",
-                                                header: () => <div className="text-center">Team</div>,
-                                                cell: ({ row }) => <div className="text-[var(--color-primary)] truncate max-w-[150px] text-center w-full">{row.original.teamName}</div>
-                                            },
-                                            {
-                                                accessorKey: "price",
-                                                header: () => <div className="text-center">Price</div>,
-                                                cell: ({ row }) => <div className="text-right font-mono w-full pr-4">₹ {row.original.price.toLocaleString("en-IN")}</div>
-                                            }
-                                        ];
-
-                                        return (
-                                            <NeoTable
-                                                columns={trackingColumns}
-                                                data={soldPlots}
-                                            />
-                                        );
-                                    })()
+                                    <>
+                                        <div className="flex justify-between items-center px-4 py-2 bg-[var(--color-surface)] border-b-2 border-[var(--color-border)]">
+                                            <span className="text-xs font-bold uppercase opacity-60">Total Revenue</span>
+                                            <span className="font-mono font-black text-lg">₹{totalRevenue.toLocaleString("en-IN")}</span>
+                                        </div>
+                                        {soldPlots.length === 0 ? (
+                                            <div className="text-center py-10 text-[var(--color-text)] opacity-40 font-bold uppercase border-2 border-dashed border-[var(--color-border)] opacity-30 m-4">
+                                                No plots sold yet.
+                                            </div>
+                                        ) : (
+                                            <NeoTable columns={trackingColumns} data={soldPlots} />
+                                        )}
+                                    </>
                                 )}
                             </div>
                         </motion.div>
@@ -196,4 +277,3 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
         </>
     );
 }
-

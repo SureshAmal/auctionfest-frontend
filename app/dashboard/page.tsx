@@ -111,6 +111,9 @@ export default function Dashboard() {
     const [rebidOffers, setRebidOffers] = useState<any[]>([]);
     const [markupInput, setMarkupInput] = useState<Record<number, string>>({});
 
+    // Round 4 phase: 'sell' | 'bid' | null
+    const [round4Phase, setRound4Phase] = useState<string | null>(null);
+
     // Track adjustments from the CURRENT policy only: { plotNumber: deltaAmount }
     const [recentAdjustments, setRecentAdjustments] = useState<Record<number, number>>({});
 
@@ -150,6 +153,11 @@ export default function Dashboard() {
                     }
                     if (stateData.current_question) {
                         setActiveQuestion(stateData.current_question);
+                    }
+
+                    // Load Round 4 phase
+                    if (stateData.round4_phase) {
+                        setRound4Phase(stateData.round4_phase);
                     }
 
                     // Load persisted current policy deltas from backend
@@ -274,10 +282,13 @@ export default function Dashboard() {
 
         const handleTeamUpdate = (data: any) => {
             const dataId = String(data.id || data.team_id);
-            // Update user's own team budget
-            if (dataId === String(userTeam.id)) {
-                setUserTeam((prev: any) => prev ? { ...prev, spent: data.spent, budget: data.budget, plots_won: data.plots_won } : null);
-            }
+            // Use functional updater so we compare against latest state, not stale closure
+            setUserTeam((prev: any) => {
+                if (prev && String(prev.id) === dataId) {
+                    return { ...prev, spent: data.spent, budget: data.budget, plots_won: data.plots_won };
+                }
+                return prev;
+            });
             // Also update the allTeams array so sidebar/leaderboard stays in sync
             setAllTeams(prev => prev.map(t =>
                 String(t.id) === dataId ? { ...t, spent: data.spent, budget: data.budget, plots_won: data.plots_won } : t
@@ -316,6 +327,16 @@ export default function Dashboard() {
             setRebidOffers(prev => prev.map(o => o.id === offer.id ? offer : o));
         });
 
+        // Round 4 phase listener
+        socket.on("round4_phase_update", (data: any) => {
+            setRound4Phase(data.phase);
+            if (data.phase === 'sell') {
+                setRebidPhaseActive(true);
+            } else if (data.phase === 'bid') {
+                setRebidPhaseActive(false);
+            }
+        });
+
         return () => {
             socket.off("auction_state_update");
             socket.off("new_bid");
@@ -328,6 +349,7 @@ export default function Dashboard() {
             socket.off("rebid_phase_update");
             socket.off("new_rebid_offer");
             socket.off("rebid_offer_sold");
+            socket.off("round4_phase_update");
         };
     }, [socket, userTeam]);
 
@@ -370,17 +392,38 @@ export default function Dashboard() {
                         </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-4 items-center justify-end">
-                        <div className="flex flex-col justify-center items-end neo-border px-3 sm:px-4 py-2 bg-[var(--color-secondary)] text-black shadow-[4px_4px_0_black]">
-                            <p className="text-[10px] sm:text-xs font-black uppercase text-black/70 mb-1">Remaining Budget</p>
-                            <p className="font-mono font-black text-lg sm:text-2xl tracking-normal bg-[var(--color-bg)] px-2 border-2 border-[var(--color-border)] shadow-[2px_2px_0_black]">
-                                ₹ {(
-                                    Number(userTeam.budget) -
-                                    Number(userTeam.spent || 0) -
-                                    (currentPlot?.winner_team_id === userTeam.id ? Number(currentPlot?.current_bid || 0) : 0)
-                                ).toLocaleString("en-IN")}
-                            </p>
-                        </div>
+                    <div className="flex flex-wrap gap-2 sm:gap-4 items-center justify-end">
+                        {(() => {
+                            const remainingCash = Number(userTeam.budget) - Number(userTeam.spent || 0) -
+                                (currentPlot?.winner_team_id === userTeam.id ? Number(currentPlot?.current_bid || 0) : 0);
+                            const portfolioValue = plots
+                                .filter(p => p.winner_team_id === userTeam.id && p.status === 'sold')
+                                .reduce((sum, p) => sum + (Number(p.current_bid || p.total_plot_price || 0) + Number(p.round_adjustment || 0)), 0);
+                            return (
+                                <div className="flex gap-1 neo-border bg-[var(--color-secondary)] text-black shadow-[4px_4px_0_black] overflow-hidden">
+                                    <div className="flex flex-col justify-center items-center px-2 sm:px-3 py-1.5">
+                                        <p className="text-[8px] sm:text-[10px] font-black uppercase text-black/60">Cash</p>
+                                        <p className="font-mono font-black text-sm sm:text-lg leading-tight">
+                                            ₹{remainingCash.toLocaleString("en-IN")}
+                                        </p>
+                                    </div>
+                                    <div className="w-[2px] bg-black/20" />
+                                    <div className="flex flex-col justify-center items-center px-2 sm:px-3 py-1.5">
+                                        <p className="text-[8px] sm:text-[10px] font-black uppercase text-black/60">Plots</p>
+                                        <p className="font-mono font-black text-sm sm:text-lg leading-tight text-[var(--color-primary)]">
+                                            ₹{portfolioValue.toLocaleString("en-IN")}
+                                        </p>
+                                    </div>
+                                    <div className="w-[2px] bg-black/20" />
+                                    <div className="flex flex-col justify-center items-center px-2 sm:px-3 py-1.5 bg-black/10">
+                                        <p className="text-[8px] sm:text-[10px] font-black uppercase text-black/60">Net Worth</p>
+                                        <p className="font-mono font-black text-sm sm:text-lg leading-tight">
+                                            ₹{(remainingCash + portfolioValue).toLocaleString("en-IN")}
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        })()}
 
                         <div className="flex items-center gap-2 neo-border px-3 py-2 bg-[var(--color-secondary)] text-white shadow-[4px_4px_0_black]">
                             <span className="font-black text-xl">{userTeam.name.charAt(0)}</span>
@@ -833,7 +876,7 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                <TrackingWindow currentPlot={currentPlot} status={auctionStatus} plots={plots} allTeams={allTeams} />
+                <TrackingWindow currentPlot={currentPlot} status={auctionStatus} plots={plots} allTeams={allTeams} userTeam={userTeam} />
             </div>
         </NeoLayout>
     );

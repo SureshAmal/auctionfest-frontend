@@ -508,26 +508,58 @@ export default function AdminPage() {
                                 ))}
                             </div>
 
-                            {/* Rebid Phase Panel */}
+                            {/* Round 4 Two-Phase Panel */}
                             {currentRound === 4 && (
                                 <div className="space-y-2 neo-border p-2 bg-[var(--color-surface)] mb-3">
                                     <h3 className="text-xs font-black uppercase flex items-center gap-2 text-[var(--color-secondary)]">
-                                        <Settings size={14} /> Rebid Phase (Round 4)
+                                        <Settings size={14} /> Round 4 — Sell &amp; Rebid
                                     </h3>
-                                    <div className="flex gap-2 mb-2">
+                                    <div className="flex gap-2">
                                         <NeoButton
-                                            variant={auctionState?.rebid_phase_active ? "danger" : "success"}
+                                            variant={auctionState?.round4_phase === 'sell' ? "danger" : "success"}
                                             className="text-xs py-2 flex-1 font-bold"
-                                            onClick={() => handleRebidToggle(!auctionState?.rebid_phase_active)}
+                                            onClick={async () => {
+                                                if (auctionState?.round4_phase === 'sell') {
+                                                    // Move to bid phase
+                                                    if (confirm("Close sell phase and start bidding on unsold listed plots?")) {
+                                                        await fetch("/api/admin/start-round4-bidding", { method: "POST" });
+                                                    }
+                                                } else {
+                                                    await fetch("/api/admin/start-round4-sell", { method: "POST" });
+                                                }
+                                            }}
                                         >
-                                            {auctionState?.rebid_phase_active ? "CLOSE REBID PHASE" : "OPEN REBID PHASE"}
+                                            {auctionState?.round4_phase === 'sell'
+                                                ? "END SELL → START BIDDING"
+                                                : auctionState?.round4_phase === 'bid'
+                                                    ? "BID PHASE ACTIVE"
+                                                    : "START SELL PHASE"}
                                         </NeoButton>
                                     </div>
                                     <p className="text-[10px] font-medium opacity-70">
-                                        {auctionState?.rebid_phase_active
-                                            ? "Rebid phase is ACTIVE! Teams can currently trade plots across the network."
-                                            : "Rebid phase is CLOSED. Teams cannot list or buy plots right now."}
+                                        {auctionState?.round4_phase === 'sell'
+                                            ? "Sell phase ACTIVE — teams can list plots. Click to close and start bidding on unsold plots."
+                                            : auctionState?.round4_phase === 'bid'
+                                                ? `Bidding on ${(auctionState?.round4_bid_queue || []).length} unsold listed plots. Use Next/Sell to advance.`
+                                                : "Start the sell phase to let teams list their plots for sale."}
                                     </p>
+                                </div>
+                            )}
+
+                            {/* End Game Button (visible on round 6) */}
+                            {currentRound >= 6 && auctionState?.status !== "completed" && (
+                                <div className="neo-border p-2 bg-red-100 mb-3">
+                                    <NeoButton
+                                        variant="danger"
+                                        className="w-full text-sm py-3 font-black"
+                                        onClick={async () => {
+                                            if (confirm("END THE GAME? This will show the final leaderboard to all teams.")) {
+                                                await fetch("/api/admin/end-game", { method: "POST" });
+                                            }
+                                        }}
+                                    >
+                                        🏁 END GAME — SHOW FINAL LEADERBOARD
+                                    </NeoButton>
                                 </div>
                             )}
 
