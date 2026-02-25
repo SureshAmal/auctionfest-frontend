@@ -186,6 +186,7 @@ export default function Dashboard() {
     }, [router]);
 
     const [sellCountdown, setSellCountdown] = useState(3);
+    const [connectionRejected, setConnectionRejected] = useState<string>("");
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -215,8 +216,19 @@ export default function Dashboard() {
     useEffect(() => {
         if (!socket || !userTeam?.id) return;
 
+        // If the socket was explicitly disconnected during a previous logout, reconnect it
+        if (!socket.connected) {
+            socket.connect();
+        }
+
         // Only join once
         socket.emit("join_auction", { team_id: userTeam.id });
+
+        socket.on("connection_rejected", (data: any) => {
+            console.error("Connection rejected:", data.message);
+            setConnectionRejected(data.message);
+            socket.disconnect(); // Explicitly disconnect the rejected socket
+        });
 
         const handleStateUpdate = (data: any) => {
             console.log("State Update:", data);
@@ -396,6 +408,24 @@ export default function Dashboard() {
 
     if (!userTeam) return null;
 
+    if (connectionRejected) {
+        return (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-md">
+                <div className="bg-red-600 text-white p-8 border-4 border-black shadow-[8px_8px_0_rgba(0,0,0,1)] max-w-md text-center">
+                    <AlertTriangle size={64} className="mx-auto mb-4 animate-pulse" />
+                    <h2 className="text-3xl font-black mb-4 uppercase tracking-wider">Access Denied</h2>
+                    <p className="text-lg font-bold mb-8">{connectionRejected}</p>
+                    <button
+                        onClick={() => window.location.href = "/"}
+                        className="px-8 py-3 bg-black text-white cursor-pointer hover:bg-gray-900 border-2 border-white font-bold uppercase transition transform hover:-translate-y-1"
+                    >
+                        Return Home
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <NeoLayout className="min-h-screen lg:h-screen lg:overflow-hidden" containerized={false}>
             <div className="flex flex-col h-full min-h-screen lg:min-h-0 p-2 sm:p-4 pb-2">
@@ -451,6 +481,7 @@ export default function Dashboard() {
 
                         <button
                             onClick={() => {
+                                if (socket) socket.disconnect();
                                 localStorage.clear();
                                 router.push("/");
                             }}
