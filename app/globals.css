@@ -277,7 +277,6 @@ body[data-theme="glass-light"]::before {
   box-shadow: 2px 2px var(--neo-shadow-blur, 0px) var(--neo-shadow-color);
 }
 
-/* Typography Overrides */
 h1,
 h2,
 h3,
@@ -287,4 +286,38 @@ h6 {
   font-weight: var(--font-weight-heavy);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+/* ============================
+   Global Custom Scrollbar
+   ============================ */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary) var(--color-bg);
+}
+
+/* Webkit (Chrome, Edge, Safari) */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+  border-radius: var(--neo-radius, 0px);
+  border: 1px solid var(--color-bg);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text);
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--color-bg);
 }
