@@ -101,6 +101,9 @@ export default function AdminPage() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
+    // Countdown / Live Widget State
+    const [sellCountdown, setSellCountdown] = useState(3);
+
     // Round 4 sell offers
     const [sellOffers, setSellOffers] = useState<any[]>([]);
 
@@ -161,6 +164,18 @@ export default function AdminPage() {
         }
     }, [currentRound]);
 
+    // Countdown Timer Logic
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (auctionState?.status === "selling") {
+            setSellCountdown(3);
+            interval = setInterval(() => {
+                setSellCountdown(prev => (prev > 1 ? prev - 1 : 1));
+            }, 2000);
+        }
+        return () => clearInterval(interval);
+    }, [auctionState?.status]);
+
     // Socket Listeners
     useEffect(() => {
         if (!socket) return;
@@ -211,9 +226,9 @@ export default function AdminPage() {
 
         socket.on("plot_update", (data: any) => {
             setPlots(prev => prev.map(p => p.number === data.number ? { ...p, ...data } : p));
-            if (auctionState?.current_plot_number === data.number) {
-                setCurrentPlot((prev: any) => prev ? { ...prev, ...data } : null);
-            }
+            setCurrentPlot((prev: any) =>
+                prev?.number === data.number ? { ...prev, ...data } : prev
+            );
         });
 
         socket.on("team_update", (data: any) => {
@@ -230,7 +245,14 @@ export default function AdminPage() {
             setSellOffers(prev => prev.filter(o => o.id !== offer.id));
         });
 
-        socket.on("new_bid", () => { /* Leaderboard not tracking individual bids */ });
+        socket.on("new_bid", (data: any) => {
+            setPlots(prev => prev.map(p =>
+                p.number === data.plot_number ? { ...p, current_bid: data.amount, winner_team_id: data.team_id } : p
+            ));
+            setCurrentPlot((prev: any) =>
+                prev?.number === data.plot_number ? { ...prev, current_bid: data.amount, winner_team_id: data.team_id } : prev
+            );
+        });
         socket.on("connection_count", (data: any) => {
             setConnectedCount(data.count);
             setConnectedTeams(data.teams || []);
@@ -531,6 +553,41 @@ export default function AdminPage() {
                                     <Clock size={14} className="mr-1" /> START COUNTDOWN (SELL)
                                 </NeoButton>
                             </div>
+
+                            {/* Live Bid Widget (R1 & R4) */}
+                            {([1, 4].includes(currentRound) && currentPlot?.number) && (
+                                <div className="neo-border p-3 bg-[var(--color-surface)] mb-3 relative overflow-hidden flex flex-col items-center">
+                                    <h3 className="text-[10px] font-black uppercase text-[var(--color-text)] opacity-60 w-full text-left mb-1">Live Plot {currentPlot.number}</h3>
+
+                                    {currentPlot.current_bid ? (
+                                        <div className="flex flex-col items-center justify-center p-2 w-full animate-in fade-in duration-300">
+                                            <span className="text-[10px] font-bold uppercase opacity-80">Highest Bid</span>
+                                            <span className="font-mono font-black text-2xl text-[var(--color-success)] leading-none my-1">
+                                                ₹{Number(currentPlot.current_bid).toLocaleString("en-IN")}
+                                            </span>
+                                            <span className="text-xs font-black uppercase bg-[var(--color-primary)] text-[var(--color-bg)] px-2 py-0.5 mt-1 border-2 border-[var(--color-border)]">
+                                                ★ {getTeamName(currentPlot.winner_team_id)}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center p-4 w-full">
+                                            <span className="text-xs font-bold uppercase opacity-50">No bids yet</span>
+                                        </div>
+                                    )}
+
+                                    {/* Selling Overlay */}
+                                    {status === "selling" && (
+                                        <div className="absolute inset-0 bg-[var(--color-danger)]/90 z-10 flex flex-col items-center justify-center backdrop-blur-[2px]">
+                                            <span className="text-[var(--color-bg)] font-black text-6xl leading-none drop-shadow-md">
+                                                {sellCountdown}
+                                            </span>
+                                            <p className="text-[var(--color-bg)] font-black text-xs mt-1 tracking-widest uppercase bg-[var(--color-text)] px-2 py-1 border-2 border-[var(--color-bg)]">
+                                                Selling...
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Reset Action */}
                             <div className="mb-3">
