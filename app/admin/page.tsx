@@ -224,6 +224,14 @@ export default function AdminPage() {
         socket.on("plot_adjustment", handlePlotAdjustment);
         socket.on("rebid_phase_update", handleRebidPhaseUpdate);
 
+        socket.on("round4_phase_update", (data: any) => {
+            setAuctionState((prev: any) => ({
+                ...prev,
+                round4_phase: data.phase,
+                round4_bid_queue: data.bid_queue || prev?.round4_bid_queue
+            }));
+        });
+
         socket.on("plot_update", (data: any) => {
             setPlots(prev => prev.map(p => p.number === data.number ? { ...p, ...data } : p));
             setCurrentPlot((prev: any) =>
@@ -265,6 +273,7 @@ export default function AdminPage() {
             socket.off("round_change");
             socket.off("plot_adjustment");
             socket.off("rebid_phase_update");
+            socket.off("round4_phase_update");
             socket.off("plot_update");
             socket.off("team_update");
             socket.off("new_rebid_offer");
