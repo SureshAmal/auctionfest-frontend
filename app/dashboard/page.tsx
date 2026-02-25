@@ -513,7 +513,12 @@ export default function Dashboard() {
 
                         <button
                             onClick={() => {
-                                if (socket) socket.disconnect();
+                                if (socket) {
+                                    socket.emit("leave_auction");
+                                    setTimeout(() => {
+                                        socket.disconnect();
+                                    }, 100);
+                                }
                                 localStorage.clear();
                                 router.push("/");
                             }}
