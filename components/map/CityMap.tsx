@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { City1SVG } from "./City1SVG";
+import { City2SVG } from "./City2SVG";
 
 interface CityMapProps {
     /** The currently active plot number to highlight. */
@@ -11,6 +12,10 @@ interface CityMapProps {
     allTeams?: any[];
     /** Adjustments from the current policy only: { plotNumber: deltaAmount }. */
     recentAdjustments?: Record<number, number>;
+    /** The current auction round. */
+    currentRound?: number;
+    /** Callback when a plot is clicked. */
+    onPlotClick?: (plotNumber: string) => void;
 }
 
 /**
@@ -21,7 +26,7 @@ interface CityMapProps {
  * - Active plot: Primary color
  * - Hover tooltip shows team, value, and adjustment details
  */
-export default function CityMap({ currentPlotNumber, plots = [], allTeams = [], recentAdjustments = {} }: CityMapProps) {
+export default function CityMap({ currentPlotNumber, plots = [], allTeams = [], recentAdjustments = {}, currentRound = 1, onPlotClick }: CityMapProps) {
     const svgRef = useRef<SVGSVGElement>(null);
     const [centers, setCenters] = useState<Record<string, { x: number; y: number }>>({});
 
@@ -37,7 +42,7 @@ export default function CityMap({ currentPlotNumber, plots = [], allTeams = [], 
 
         groups.forEach((g) => {
             const id = g.getAttribute("id");
-            if (id && id !== "city_1" && id !== "road" && !isNaN(Number(id))) {
+            if (id && id !== "city_1" && id !== "city 1" && id !== "road" && !isNaN(Number(id))) {
                 const bbox = (g as SVGGElement).getBBox();
                 newCenters[id] = {
                     x: bbox.x + bbox.width / 2,
@@ -49,16 +54,25 @@ export default function CityMap({ currentPlotNumber, plots = [], allTeams = [], 
         setCenters(newCenters);
     }, []);
 
+    // Throttle helper to reduce hover lag
+    const hoverTimeout = useRef<NodeJS.Timeout | null>(null);
+
     // Track mouse over the container for tooltips
     const handleMouseMove = (e: React.MouseEvent) => {
         if (!svgRef.current) return;
+
+        // Throttling for performance on massive SVGs
+        if (hoverTimeout.current) return;
+        hoverTimeout.current = setTimeout(() => {
+            hoverTimeout.current = null;
+        }, 50);
 
         const target = e.target as Element;
         const group = target.closest('g[id]');
 
         if (group) {
             const id = group.getAttribute('id');
-            if (id && id !== "city_1" && id !== "road" && !isNaN(Number(id))) {
+            if (id && id !== "city_1" && id !== "city 1" && id !== "road" && !isNaN(Number(id))) {
                 const plotData = plots.find(p => p.number.toString() === id);
                 // Show tooltip for any plot with data
                 if (plotData) {
@@ -76,17 +90,26 @@ export default function CityMap({ currentPlotNumber, plots = [], allTeams = [], 
         setHoveredPlot(null);
     };
 
+    const handleClick = (e: React.MouseEvent) => {
+        if (!svgRef.current || !onPlotClick) return;
+
+        const target = e.target as Element;
+        const group = target.closest('g[id]');
+
+        if (group) {
+            const id = group.getAttribute('id');
+            if (id && id !== "city_1" && id !== "city 1" && id !== "road" && !isNaN(Number(id))) {
+                onPlotClick(id);
+            }
+        }
+    };
+
     // Check which plots have recent (current policy) adjustments
     const recentPlotNumbers = new Set(Object.keys(recentAdjustments).map(Number));
 
-    // Dynamic styles for sold plots WITHOUT recent adjustments (green)
-    const soldPlotsStyles = plots
-        .filter(p => p.status === 'sold' && !recentPlotNumbers.has(p.number))
-        .map(p => `
-            g[id="${p.number}"] path { fill: #4ade80 !important; opacity: 0.9 !important; stroke: #16a34a; stroke-width: 6px; }
-            g[id="${p.number}"]:hover path { fill: #22c55e !important; stroke: black; stroke-width: 8px; }
-        `)
-        .join("\n");
+    // The user requested NOT to highlight all sold plots, only currently changing plots
+    // Therefore, soldPlotsStyles is removed
+    const soldPlotsStyles = "";
 
     // Dynamic styles for recently adjusted plots (current policy only — orange/red with pulse)
     const adjustedPlotsStyles = Object.entries(recentAdjustments)
@@ -117,6 +140,7 @@ export default function CityMap({ currentPlotNumber, plots = [], allTeams = [], 
             className="relative w-full h-full"
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
+            onClick={handleClick}
         >
             <style>{`
                 @keyframes plotPulse {
@@ -131,9 +155,18 @@ export default function CityMap({ currentPlotNumber, plots = [], allTeams = [], 
                 ${adjustedPlotsStyles}
             `}</style>
 
-            <City1SVG ref={svgRef} currentPlotNumber={currentPlotNumber?.toString() || ""} />
+            {currentRound > 1 ? (
+                <City2SVG ref={svgRef} currentPlotNumber={currentPlotNumber?.toString() || ""} />
+            ) : (
+                <City1SVG ref={svgRef} currentPlotNumber={currentPlotNumber?.toString() || ""} />
+            )}
 
-            <svg className="absolute inset-0 pointer-events-none" viewBox="0 0 3169 3024" preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: '100%' }}>
+            <svg
+                className="absolute inset-0 pointer-events-none"
+                viewBox={currentRound > 1 ? "0 0 3714 3385" : "0 0 3169 3024"}
+                preserveAspectRatio="xMidYMid meet"
+                style={{ width: '100%', height: '100%' }}
+            >
                 {Object.entries(centers).map(([id, pos]) => {
                     const isRecent = recentPlotNumbers.has(Number(id));
 
@@ -166,12 +199,28 @@ export default function CityMap({ currentPlotNumber, plots = [], allTeams = [], 
                 >
                     <div className="flex flex-col items-center">
                         <span className="font-black text-lg mb-1">Plot #{hoveredPlot.number}</span>
+                        {/* Type */}
+                        {(hoveredPlot.plot_type || hoveredPlot.type) && (
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="opacity-70 text-xs font-bold uppercase">Type:</span>
+                                <span className="font-bold text-xs">{hoveredPlot.plot_type || hoveredPlot.type}</span>
+                            </div>
+                        )}
                         {/* Owner team */}
                         {hoveredPlot.winner_team_id && (
                             <div className="flex items-center gap-2 mb-1">
                                 <span className="opacity-70 text-xs font-bold uppercase">Team:</span>
                                 <span className="text-[var(--color-primary)] font-bold">
                                     {allTeams.find(t => t.id === hoveredPlot.winner_team_id)?.name || hoveredPlot.winner_team_id}
+                                </span>
+                            </div>
+                        )}
+                        {/* Area */}
+                        {(hoveredPlot.total_area || hoveredPlot.actual_area) && (
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="opacity-70 text-xs font-bold uppercase">Area:</span>
+                                <span className="font-mono font-bold text-xs">
+                                    {hoveredPlot.total_area} sqft <span className="opacity-50">(Actual: {hoveredPlot.actual_area} sqft)</span>
                                 </span>
                             </div>
                         )}

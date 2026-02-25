@@ -786,7 +786,15 @@ export default function AdminPage() {
                                         </h3>
                                         <div className="relative w-full aspect-square bg-gray-100 border-t-2 border-[var(--color-border)]">
                                             <div className="absolute inset-0 pointer-events-none p-2 w-full h-full opacity-70">
-                                                <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={teams} />
+                                                <CityMap
+                                                    currentPlotNumber={currentPlot?.number}
+                                                    plots={plots}
+                                                    allTeams={teams}
+                                                    onPlotClick={(id) => {
+                                                        const p = plots.find(p => p.number.toString() === id);
+                                                        if (p) setCurrentPlot(p);
+                                                    }}
+                                                />
                                             </div>
                                             <div className="absolute top-2 right-2">
                                                 <NeoBadge variant="info">Plot #{currentPlot?.number || "-"}</NeoBadge>
@@ -834,7 +842,19 @@ export default function AdminPage() {
                                 </button>
                             </div>
                             <div className="flex-1 bg-[var(--color-bg)] border-2 border-[var(--color-border)] relative overflow-hidden flex items-center justify-center p-4">
-                                <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={teams} />
+                                <CityMap
+                                    currentPlotNumber={currentPlot?.number}
+                                    plots={plots}
+                                    allTeams={teams}
+                                    onPlotClick={(id) => {
+                                        const p = plots.find(p => p.number.toString() === id);
+                                        if (p && !isImageModalOpen) setCurrentPlot(p);
+                                        else if (p && isImageModalOpen) {
+                                            setCurrentPlot(p);
+                                            setIsImageModalOpen(false);
+                                        }
+                                    }}
+                                />
                             </div>
                         </div>
                     </div>

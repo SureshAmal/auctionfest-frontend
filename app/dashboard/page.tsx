@@ -554,7 +554,7 @@ export default function Dashboard() {
                                 </div>
                             </div>
                             <div className="absolute inset-0 pointer-events-none p-4 opacity-50">
-                                <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} recentAdjustments={recentAdjustments} />
+                                <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} recentAdjustments={recentAdjustments} currentRound={currentRound} />
                             </div>
                         </NeoCard>
                     </div>
@@ -575,7 +575,7 @@ export default function Dashboard() {
 
                             <NeoCard className="flex-1 min-h-[300px] lg:min-h-0 p-0 overflow-hidden relative bg-[var(--color-bg)]">
                                 <div className="absolute inset-0 p-2 sm:p-4">
-                                    <CityMap currentPlotNumber={undefined} plots={plots} allTeams={allTeams} recentAdjustments={recentAdjustments} />
+                                    <CityMap currentPlotNumber={undefined} plots={plots} allTeams={allTeams} recentAdjustments={recentAdjustments} currentRound={currentRound} />
                                 </div>
                             </NeoCard>
                         </div>
