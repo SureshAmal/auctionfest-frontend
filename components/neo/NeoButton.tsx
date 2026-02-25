@@ -19,10 +19,10 @@ export default function NeoButton({
     const baseStyles = "font-bold uppercase tracking-wider neo-border flex items-center justify-center cursor-pointer select-none";
 
     const variants = {
-        primary: "bg-[var(--color-primary)] text-white",
-        secondary: "bg-[var(--color-secondary)] text-white",
-        danger: "bg-[var(--color-danger)] text-white",
-        success: "bg-[var(--color-success)] text-black",
+        primary: "bg-[var(--color-primary)] text-[var(--color-bg)]",
+        secondary: "bg-[var(--color-secondary)] text-[var(--color-bg)]",
+        danger: "bg-[var(--color-danger)] text-[var(--color-bg)]",
+        success: "bg-[var(--color-success)] text-[var(--color-text)]",
         base: "bg-[var(--color-bg)] text-[var(--color-text)]",
     };
 
@@ -44,7 +44,8 @@ export default function NeoButton({
                 y: 4,
                 boxShadow: "0px 0px 0 var(--neo-shadow-color)"
             }}
-            initial={{ boxShadow: "6px 6px 0 var(--neo-shadow-color)" }}
+            initial={{ boxShadow: "var(--neo-shadow-offset-x) var(--neo-shadow-offset-y) 0 var(--neo-shadow-color)" }}
+            style={{ borderRadius: "var(--neo-radius)", overflow: "hidden" }}
             className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
             {...props as any}
         >

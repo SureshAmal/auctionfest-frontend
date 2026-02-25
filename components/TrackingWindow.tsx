@@ -121,17 +121,38 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
             <motion.div
                 drag
                 dragMomentum={false}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.02, y: -2 }}
+                whileTap={{ scale: 0.98 }}
                 onDragStart={handleDragStart}
                 onClick={handleClick}
                 className="fixed bottom-6 right-6 z-40 cursor-pointer"
+                style={{ borderRadius: "var(--neo-radius)" }}
             >
-                <div className="bg-[var(--color-primary)] text-white border-4 border-[var(--color-border)] shadow-[4px_4px_0_black] p-4 flex items-center gap-3 rounded-full">
-                    <Activity size={24} className="animate-pulse" />
-                    <div className="flex flex-col">
-                        <span className="font-black uppercase text-sm leading-none">Live Tracker</span>
-                        <span className="text-xs font-bold uppercase opacity-80">{status} • {soldPlots.length} Sold</span>
+                {/* Mini Dashboard Style Floating Tracker */}
+                <div className="bg-[var(--color-bg)] border-[length:var(--neo-border-width)] border-[var(--color-border)] shadow-[var(--neo-shadow-offset-x)_var(--neo-shadow-offset-y)_0_var(--neo-shadow-color)] flex flex-col w-72 overflow-hidden" style={{ borderRadius: "var(--neo-radius)" }}>
+                    {/* Header */}
+                    <div className="bg-[var(--color-primary)] text-[var(--color-bg)] p-2 px-3 flex justify-between items-center border-b-[length:var(--neo-border-width)] border-[var(--color-border)]">
+                        <span className="font-black uppercase text-sm flex items-center gap-2">
+                            <Activity size={16} className={status === "RUNNING" ? "animate-pulse" : ""} />
+                            Live Tracker
+                        </span>
+                        <span className="text-[10px] font-bold uppercase bg-[var(--color-bg)] text-[var(--color-text)] px-2 py-0.5 border-2 border-[var(--color-border)]" style={{ borderRadius: "calc(var(--neo-radius) / 2)" }}>
+                            {status}
+                        </span>
+                    </div>
+                    {/* Stats Body */}
+                    <div className="p-3 bg-[var(--color-surface)] text-[var(--color-text)] flex justify-between items-center">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-bold uppercase opacity-60">Plots Sold</span>
+                            <span className="font-black text-xl">{soldPlots.length}</span>
+                        </div>
+                        <div className="w-[1px] h-8 bg-[var(--color-border)] opacity-20"></div>
+                        <div className="flex flex-col items-end">
+                            <span className="text-[10px] font-bold uppercase opacity-60">Total Revenue</span>
+                            <span className="font-black text-xl text-[var(--color-success)] truncate max-w-[120px]">
+                                ₹{(totalRevenue / 10000000).toFixed(2)}Cr
+                            </span>
+                        </div>
                     </div>
                 </div>
             </motion.div>
@@ -154,7 +175,7 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                            className="relative bg-[var(--color-bg)] border-4 border-[var(--color-border)] shadow-[8px_8px_0_black] w-full max-w-4xl max-h-[90vh] flex flex-col pointer-events-auto overflow-hidden"
+                            className="relative bg-[var(--color-bg)] border-4 border-[var(--color-border)] shadow-[8px_8px_0_var(--neo-shadow-color)] w-full max-w-4xl max-h-[90vh] flex flex-col pointer-events-auto overflow-hidden"
                         >
                             {/* 1. Full Image Top */}
                             <div className="relative bg-[var(--color-bg)] border-b-4 border-[var(--color-border)] h-[40vh] min-h-[250px] shrink-0 overflow-hidden">
@@ -169,7 +190,7 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                                         <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} />
                                     </div>
                                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/20 transition-opacity pointer-events-none">
-                                        <span className="bg-black text-white px-2 py-1 text-xs font-bold uppercase">Click to Zoom</span>
+                                        <span className="bg-[var(--color-text)] text-[var(--color-bg)] px-2 py-1 text-xs font-bold uppercase">Click to Zoom</span>
                                     </div>
                                 </div>
                                 {/* Absolute Close Button */}
@@ -266,7 +287,7 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                                 dragConstraints={containerRef}
                                 dragElastic={0.2}
                                 dragMomentum={false}
-                                className="w-[80vw] h-[80vh] shadow-2xl bg-white border-4 border-black"
+                                className="w-[80vw] h-[80vh] shadow-2xl bg-[var(--color-bg)] border-4 border-[var(--color-border)]"
                             >
                                 <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} />
                             </motion.div>

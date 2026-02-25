@@ -95,8 +95,8 @@ export default function Home() {
 
         <NeoCard className="bg-[var(--color-bg)]">
           <div className="flex justify-center mb-6">
-            <div className="w-16 h-16 bg-[var(--color-primary)] border-4 border-[var(--color-border)] flex items-center justify-center shadow-[4px_4px_0_black]">
-              <Users size={32} className="text-white" />
+            <div className="w-16 h-16 bg-[var(--color-primary)] border-4 border-[var(--color-border)] flex items-center justify-center shadow-[4px_4px_0_var(--neo-shadow-color)]">
+              <Users size={32} className="text-[var(--color-bg)]" />
             </div>
           </div>
 

@@ -193,14 +193,14 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
         <NeoCard className={`bg-[var(--color-bg)] flex flex-col ${className}`}>
 
             {auctionStatus === "selling" && (
-                <div className="bg-[var(--color-danger)] text-white p-3 neo-border mb-4 animate-pulse shadow-[4px_4px_0_black]">
+                <div className="bg-[var(--color-danger)] text-[var(--color-bg)] p-3 neo-border mb-4 animate-pulse shadow-[4px_4px_0_var(--neo-shadow-color)]">
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                            <Clock size={24} className="text-white" />
+                            <Clock size={24} className="text-[var(--color-bg)]" />
                             <h3 className="text-xl font-black uppercase tracking-widest leading-none">GOING...</h3>
                         </div>
                     </div>
-                    <div className="bg-black text-white px-3 py-1.5 border border-white flex justify-between items-center w-full shadow-[2px_2px_0_white]">
+                    <div className="bg-[var(--color-text)] text-[var(--color-bg)] px-3 py-1.5 border border-[var(--color-bg)] flex justify-between items-center w-full shadow-[2px_2px_0_var(--color-bg)]">
                         {currentPlot.winner_team_id ? (
                             <>
                                 <div>
@@ -239,7 +239,7 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
                             ₹ {(actualBid > 0 ? actualBid : adjustedValue).toLocaleString("en-IN")}
                         </span>
                         {currentPlot.winner_team_id && (
-                            <span className="text-xs font-bold uppercase bg-black text-white px-2 py-0.5">
+                            <span className="text-xs font-bold uppercase bg-[var(--color-text)] text-[var(--color-bg)] px-2 py-0.5">
                                 {getTeamName(currentPlot.winner_team_id)}
                             </span>
                         )}
@@ -248,7 +248,7 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
 
                 {/* Projected Balance on Win */}
                 {(bidAmountNum > 0 || currentPlot?.winner_team_id === userTeam.id) && (
-                    <div className="flex justify-between items-center text-xs font-black uppercase neo-border p-2 bg-[var(--color-success)] text-[var(--color-text)] shadow-[3px_3px_0_black] mb-3">
+                    <div className="flex justify-between items-center text-xs font-black uppercase neo-border p-2 bg-[var(--color-success)] text-[var(--color-text)] shadow-[3px_3px_0_var(--neo-shadow-color)] mb-3">
                         <span>If {bidAmountNum > 0 ? "Bid" : "Current Bid"} Won</span>
                         <span className="font-mono text-sm leading-none bg-[var(--color-bg)] px-2 py-1 border-2 border-[var(--color-border)]">
                             ₹ {Math.max(0,

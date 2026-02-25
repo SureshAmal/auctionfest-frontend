@@ -34,7 +34,7 @@ export default function NeoModal({ isOpen, onClose, title, children }: NeoModalP
                                 {title && <h2 className="text-xl font-bold uppercase">{title}</h2>}
                                 <button
                                     onClick={onClose}
-                                    className="hover:bg-[var(--color-danger)] hover:text-white p-1 transition-colors neo-border"
+                                    className="hover:bg-[var(--color-danger)] hover:text-[var(--color-bg)] p-1 transition-colors neo-border"
                                 >
                                     <X size={24} />
                                 </button>

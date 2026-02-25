@@ -7,7 +7,8 @@
   --color-primary: #FF4D00;
   --color-text: #000000;
   --color-border: #000000;
-  --color-secondary: #0087FF; /* Adding blue for variety */
+  --color-secondary: #0087FF;
+  /* Adding blue for variety */
   --color-danger: #FF0000;
   --color-success: #00FF00;
 
@@ -16,15 +17,17 @@
   --neo-radius: 0px;
   --neo-shadow-offset-x: 6px;
   --neo-shadow-offset-y: 6px;
+  --neo-shadow-blur: 0px;
   --neo-shadow-color: #000000;
 
   /* Typography */
+  --font-family: inherit;
   --font-weight-bold: 800;
   --font-weight-heavy: 900;
-  
+
   /* Animation */
-  --neo-transition-fast: 120ms cubic-bezier(.2,.8,.2,1);
-  --neo-transition-medium: 200ms cubic-bezier(.2,.8,.2,1);
+  --neo-transition-fast: 120ms cubic-bezier(.2, .8, .2, 1);
+  --neo-transition-medium: 200ms cubic-bezier(.2, .8, .2, 1);
 }
 
 /* Theme Variants (can be applied to body via JS) */
@@ -43,18 +46,206 @@ body[data-theme="corporate-fun"] {
 body {
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: 'Inter', sans-serif; /* Explicitly set Inter if available, otherwise fallback */
-  overflow-x: hidden; /* Prevent scrollbar shift from animations */
+  font-family: var(--font-family, 'Inter', sans-serif);
+  overflow-x: hidden;
+  /* Prevent scrollbar shift from animations */
+}
+
+/* ============================
+   Pixel Art Themes — Shared Styles
+   ============================ */
+
+/* Shared pixel art overrides for BOTH dark and light pixel themes */
+body[data-theme="pixel-art"],
+body[data-theme="pixel-art-light"] {
+  --neo-radius: 0px;
+  --neo-border-width: 4px;
+  --font-family: var(--font-pixel), 'Courier New', monospace;
+  image-rendering: pixelated;
+  font-size: 10px;
+  /* Reduced to prevent overflow, pixel fonts are naturally large */
+  line-height: 1.4;
+}
+
+/* Pixel font on ALL text */
+body[data-theme="pixel-art"] *,
+body[data-theme="pixel-art-light"] * {
+  font-family: var(--font-pixel), 'Courier New', monospace !important;
+}
+
+/* NES-style inset pixel border — stacked box-shadows for 8-bit feel */
+body[data-theme="pixel-art"] .neo-border,
+body[data-theme="pixel-art-light"] .neo-border {
+  border: none;
+  box-shadow:
+    inset -4px -4px var(--color-border),
+    inset 4px 4px var(--color-border),
+    inset -8px -8px var(--color-bg),
+    inset 8px 8px var(--color-bg) !important;
+  border-radius: 0 !important;
+  padding: 6px;
+  /* Slightly reduced padding to help with overflow */
+}
+
+/* Pixel shadow on cards/buttons — stepped offset */
+body[data-theme="pixel-art"] .neo-shadow,
+body[data-theme="pixel-art-light"] .neo-shadow {
+  box-shadow:
+    4px 0 0 var(--color-border),
+    0 4px 0 var(--color-border),
+    4px 4px 0 var(--color-border) !important;
+}
+
+/* Pixel-style input */
+body[data-theme="pixel-art"] .neo-input,
+body[data-theme="pixel-art-light"] .neo-input {
+  border: 4px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 8px;
+  /* Reduced for pixel font width */
+  letter-spacing: 0px;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+body[data-theme="pixel-art"] .neo-input:focus,
+body[data-theme="pixel-art-light"] .neo-input:focus {
+  background-color: var(--color-bg);
+  border-color: var(--color-primary);
+  transform: none;
+  box-shadow: none !important;
+}
+
+/* Pixel typography — text-shadow for depth */
+body[data-theme="pixel-art"] h1,
+body[data-theme="pixel-art-light"] h1 {
+  font-size: 16px;
+  text-shadow: 2px 2px 0 var(--neo-shadow-color);
+  letter-spacing: 1px;
+}
+
+body[data-theme="pixel-art"] h2,
+body[data-theme="pixel-art-light"] h2 {
+  font-size: 14px;
+  text-shadow: 2px 2px 0 var(--neo-shadow-color);
+  letter-spacing: 0px;
+}
+
+body[data-theme="pixel-art"] h3,
+body[data-theme="pixel-art-light"] h3 {
+  font-size: 10px;
+  text-shadow: 2px 2px 0 var(--neo-shadow-color);
+}
+
+/* Button press effect */
+body[data-theme="pixel-art"] button:active,
+body[data-theme="pixel-art-light"] button:active {
+  transform: translate(2px, 2px) !important;
+}
+
+/* CRT scanline overlay */
+body[data-theme="pixel-art"]::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.06) 2px,
+      rgba(0, 0, 0, 0.06) 4px);
+}
+
+/* ---- Dark Pixel Art ---- */
+body[data-theme="pixel-art"] {
+  --color-bg: #0f0e17;
+  --color-surface: #1a1932;
+  --color-primary: #ff6e96;
+  --color-text: #fffffe;
+  --color-border: #fffffe;
+  --color-secondary: #7f5af0;
+  --color-danger: #e53170;
+  --color-success: #2cb67d;
+  --neo-shadow-color: rgba(0, 0, 0, 0.4);
+  --neo-shadow-offset-x: 0px;
+  --neo-shadow-offset-y: 0px;
+}
+
+/* ---- Light Pixel Art (Game Boy inspired) ---- */
+body[data-theme="pixel-art-light"] {
+  --color-bg: #e0e8d0;
+  --color-surface: #c8d0a8;
+  --color-primary: #306230;
+  --color-text: #0f380f;
+  --color-border: #0f380f;
+  --color-secondary: #8bac0f;
+  --color-danger: #9b1b30;
+  --color-success: #306230;
+  --neo-shadow-color: rgba(15, 56, 15, 0.3);
+  --neo-shadow-offset-x: 0px;
+  --neo-shadow-offset-y: 0px;
+}
+
+/* ============================
+   Glassmorphism Themes
+   ============================ */
+
+/* Add backdrop-filter to surface elements (cards, tracking window, inputs) */
+body[data-theme="glass"]>div,
+body[data-theme="glass-light"]>div,
+body[data-theme="glass"] .bg-\[var\(--color-surface\)\],
+body[data-theme="glass-light"] .bg-\[var\(--color-surface\)\],
+body[data-theme="glass"] .bg-\[var\(--color-bg\)\],
+body[data-theme="glass-light"] .bg-\[var\(--color-bg\)\],
+body[data-theme="glass"] .neo-input,
+body[data-theme="glass-light"] .neo-input {
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Glass inputs */
+body[data-theme="glass"] .neo-input,
+body[data-theme="glass-light"] .neo-input {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+body[data-theme="glass"] .neo-input:focus,
+body[data-theme="glass-light"] .neo-input:focus {
+  background: var(--color-bg);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 16px var(--color-primary);
+}
+
+/* Optional animated organic background for glass themes to show off the blur */
+body[data-theme="glass"]::before,
+body[data-theme="glass-light"]::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, var(--color-secondary) 0%, transparent 40%),
+    radial-gradient(circle at 80% 20%, var(--color-primary) 0%, transparent 40%);
+  opacity: 0.15;
 }
 
 /* Utility Classes for Neo-Brutalism */
 
 .neo-border {
   border: var(--neo-border-width) solid var(--color-border);
+  border-radius: var(--neo-radius);
 }
 
 .neo-shadow {
-  box-shadow: var(--neo-shadow-offset-x) var(--neo-shadow-offset-y) 0 var(--neo-shadow-color);
+  box-shadow: var(--neo-shadow-offset-x) var(--neo-shadow-offset-y) var(--neo-shadow-blur, 0px) var(--neo-shadow-color);
+  border-radius: var(--neo-radius);
 }
 
 .neo-input {
@@ -69,7 +260,7 @@ body {
 .neo-input:focus {
   background-color: var(--color-surface);
   transform: translate(-2px, -2px);
-  box-shadow: 4px 4px 0 var(--neo-shadow-color);
+  box-shadow: 4px 4px var(--neo-shadow-blur, 0px) var(--neo-shadow-color);
 }
 
 /* Animation Utilities */
@@ -83,11 +274,16 @@ body {
 
 .neo-press:active {
   transform: translate(calc(var(--neo-shadow-offset-x) / 1.5), calc(var(--neo-shadow-offset-y) / 1.5));
-  box-shadow: 2px 2px 0 var(--neo-shadow-color);
+  box-shadow: 2px 2px var(--neo-shadow-blur, 0px) var(--neo-shadow-color);
 }
 
 /* Typography Overrides */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-weight: var(--font-weight-heavy);
   text-transform: uppercase;
   letter-spacing: 0.5px;

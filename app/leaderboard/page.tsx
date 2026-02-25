@@ -136,18 +136,18 @@ export default function LeaderboardPage() {
 
     return (
         <NeoLayout containerized={false} className="min-h-screen flex flex-col bg-[var(--color-bg)] text-[var(--color-text)]">
-            <header className="flex justify-between items-end p-4 lg:p-6 bg-[var(--color-surface)] neo-border shadow-[8px_8px_0_black] z-10 mb-2">
+            <header className="flex justify-between items-end p-4 lg:p-6 bg-[var(--color-surface)] neo-border shadow-[8px_8px_0_var(--neo-shadow-color)] z-10 mb-2">
                 <div>
                     <h1 className="text-3xl md:text-5xl font-black uppercase text-[var(--color-primary)] flex items-center gap-3 tracking-tighter">
                         <Trophy size={40} className="text-[var(--color-primary)]" /> LIVE LEADERBOARD
                     </h1>
                     <div className="flex items-center gap-3 mt-2">
-                        <div className={`px-2 py-0.5 text-[10px] font-black uppercase border-2 border-black flex items-center gap-1.5 ${isConnected ? "bg-[var(--color-success)] text-white" : "bg-[var(--color-danger)] text-white animate-pulse"
+                        <div className={`px-2 py-0.5 text-[10px] font-black uppercase border-2 border-[var(--color-border)] flex items-center gap-1.5 ${isConnected ? "bg-[var(--color-success)] text-[var(--color-bg)]" : "bg-[var(--color-danger)] text-[var(--color-bg)] animate-pulse"
                             }`}>
-                            <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-white" : "bg-black"}`} />
+                            <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-[var(--color-bg)]" : "bg-[var(--color-text)]"}`} />
                             {isConnected ? "connected" : "disconnected"}
                         </div>
-                        <div className={`px-2 py-0.5 text-[10px] font-black uppercase border-2 border-black ${auctionStatus === "completed" ? "bg-[var(--color-primary)] text-white" : "bg-white text-black"
+                        <div className={`px-2 py-0.5 text-[10px] font-black uppercase border-2 border-[var(--color-border)] ${auctionStatus === "completed" ? "bg-[var(--color-primary)] text-[var(--color-bg)]" : "bg-[var(--color-bg)] text-[var(--color-text)]"
                             }`}>
                             STATUS: {auctionStatus}
                         </div>
@@ -192,7 +192,7 @@ export default function LeaderboardPage() {
                         return (
                             <div
                                 key={team.id}
-                                className={`relative flex items-center justify-between h-10 md:h-12 lg:h-[3.25rem] w-full break-inside-avoid mb-2 lg:mb-2.5 bg-[var(--color-surface)] border border-black/10 rounded-r-md`}
+                                className={`relative flex items-center justify-between h-10 md:h-12 lg:h-[3.25rem] w-full break-inside-avoid mb-2 lg:mb-2.5 bg-[var(--color-surface)] border border-[var(--color-border)]/10 rounded-r-md`}
                             >
                                 {/* The solid colored bar acting as background and chart */}
                                 <div

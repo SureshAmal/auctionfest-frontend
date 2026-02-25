@@ -421,23 +421,21 @@ export default function Dashboard() {
                                 .filter(p => p.winner_team_id === userTeam.id && p.status === 'sold')
                                 .reduce((sum, p) => sum + (Number(p.current_bid || p.total_plot_price || 0) + Number(p.round_adjustment || 0)), 0);
                             return (
-                                <div className="flex gap-1 neo-border bg-[var(--color-secondary)] text-black shadow-[4px_4px_0_black] overflow-hidden">
-                                    <div className="flex flex-col justify-center items-center px-2 sm:px-3 py-1.5">
-                                        <p className="text-[8px] sm:text-[10px] font-black uppercase text-black/60">Cash</p>
+                                <div className="flex neo-border bg-[var(--color-text)] text-[var(--color-bg)] shadow-[4px_4px_0_var(--neo-shadow-color)] overflow-hidden">
+                                    <div className="flex flex-col justify-center items-center px-3 sm:px-4 py-2 border-r-2 border-[var(--color-bg)]/15">
+                                        <p className="text-[8px] sm:text-[10px] font-black uppercase opacity-60 tracking-wider">Cash</p>
                                         <p className="font-mono font-black text-sm sm:text-lg leading-tight">
                                             ₹{remainingCash.toLocaleString("en-IN")}
                                         </p>
                                     </div>
-                                    <div className="w-[2px] bg-black/20" />
-                                    <div className="flex flex-col justify-center items-center px-2 sm:px-3 py-1.5">
-                                        <p className="text-[8px] sm:text-[10px] font-black uppercase text-black/60">Plots</p>
-                                        <p className="font-mono font-black text-sm sm:text-lg leading-tight text-[var(--color-primary)]">
+                                    <div className="flex flex-col justify-center items-center px-3 sm:px-4 py-2 border-r-2 border-[var(--color-bg)]/15">
+                                        <p className="text-[8px] sm:text-[10px] font-black uppercase opacity-60 tracking-wider">Plots</p>
+                                        <p className="font-mono font-black text-sm sm:text-lg leading-tight text-[var(--color-success)]">
                                             ₹{portfolioValue.toLocaleString("en-IN")}
                                         </p>
                                     </div>
-                                    <div className="w-[2px] bg-black/20" />
-                                    <div className="flex flex-col justify-center items-center px-2 sm:px-3 py-1.5 bg-black/10">
-                                        <p className="text-[8px] sm:text-[10px] font-black uppercase text-black/60">Net Worth</p>
+                                    <div className="flex flex-col justify-center items-center px-3 sm:px-4 py-2 bg-[var(--color-surface)] text-[var(--color-text)]">
+                                        <p className="text-[8px] sm:text-[10px] font-black uppercase opacity-60 tracking-wider">Net Worth</p>
                                         <p className="font-mono font-black text-sm sm:text-lg leading-tight">
                                             ₹{(remainingCash + portfolioValue).toLocaleString("en-IN")}
                                         </p>
@@ -446,8 +444,8 @@ export default function Dashboard() {
                             );
                         })()}
 
-                        <div className="flex items-center gap-2 neo-border px-3 py-2 bg-[var(--color-secondary)] text-white shadow-[4px_4px_0_black]">
-                            <span className="font-black text-xl">{userTeam.name.charAt(0)}</span>
+                        <div className="flex items-center gap-2 neo-border border-[var(--color-primary)] px-3 py-2 bg-[var(--color-primary)] text-[var(--color-bg)] shadow-[4px_4px_0_var(--neo-shadow-color)]">
+                            <span className="font-black text-xl bg-[var(--color-bg)] text-[var(--color-primary)] w-8 h-8 flex items-center justify-center">{userTeam.name.charAt(0)}</span>
                             <span className="font-black text-sm uppercase">{userTeam.name}</span>
                         </div>
 
@@ -456,7 +454,7 @@ export default function Dashboard() {
                                 localStorage.clear();
                                 router.push("/");
                             }}
-                            className="p-3 bg-[var(--color-danger)] text-white border-4 border-[var(--color-border)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none shadow-[4px_4px_0_black] transition-all"
+                            className="p-3 bg-[var(--color-danger)] text-[var(--color-bg)] border-4 border-[var(--color-border)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none shadow-[4px_4px_0_var(--neo-shadow-color)] transition-all"
                         >
                             <LogOut size={20} strokeWidth={3} />
                         </button>
@@ -467,11 +465,11 @@ export default function Dashboard() {
                 {auctionStatus === "completed" ? (
                     <div className="flex-1 min-h-0 flex items-center justify-center overflow-auto p-4 md:p-8 relative">
                         {/* Confetti / Background decoration could go here */}
-                        <NeoCard className="w-full max-w-4xl bg-white border-8 border-black shadow-[12px_12px_0_var(--color-primary)] p-6 lg:p-10 flex flex-col max-h-full">
+                        <NeoCard className="w-full max-w-4xl bg-[var(--color-bg)] border-8 border-[var(--color-border)] shadow-[12px_12px_0_var(--color-primary)] p-6 lg:p-10 flex flex-col max-h-full">
                             <h2 className="text-4xl md:text-6xl font-black uppercase text-center mb-2 tracking-tighter">
                                 FINAL <span className="text-[var(--color-primary)]">LEADERBOARD</span>
                             </h2>
-                            <p className="text-center font-bold text-sm uppercase opacity-50 border-b-4 border-dashed border-black pb-4 mb-6">
+                            <p className="text-center font-bold text-sm uppercase opacity-50 border-b-4 border-dashed border-[var(--color-border)] pb-4 mb-6">
                                 Ranked by Total Net Worth (Remaining Cash + Plot Valuation)
                             </p>
                             <div className="flex-1 overflow-y-auto pr-2 space-y-4">
@@ -489,10 +487,10 @@ export default function Dashboard() {
                                 }).sort((a, b) => b.netWorth - a.netWorth).map((team, index) => (
                                     <div
                                         key={team.id}
-                                        className={`flex flex-col md:flex-row items-center gap-4 justify-between border-4 border-black p-4 transition-transform ${index === 0 ? 'bg-[var(--color-success)] text-white shadow-[6px_6px_0_black] scale-[1.02] -rotate-1 z-10' : 'bg-[var(--color-surface)] shadow-[4px_4px_0_black]'}`}
+                                        className={`flex flex-col md:flex-row items-center gap-4 justify-between border-4 border-[var(--color-border)] p-4 transition-transform ${index === 0 ? 'bg-[var(--color-success)] text-[var(--color-bg)] shadow-[6px_6px_0_var(--neo-shadow-color)] scale-[1.02] -rotate-1 z-10' : 'bg-[var(--color-surface)] shadow-[4px_4px_0_var(--neo-shadow-color)]'}`}
                                     >
                                         <div className="flex items-center gap-4 w-full md:w-auto">
-                                            <div className={`shrink-0 w-12 h-12 flex items-center justify-center font-black text-2xl border-4 ${index === 0 ? 'border-white bg-white text-[var(--color-success)]' : 'border-black bg-[var(--color-bg)]'}`}>
+                                            <div className={`shrink-0 w-12 h-12 flex items-center justify-center font-black text-2xl border-4 ${index === 0 ? 'border-[var(--color-bg)] bg-[var(--color-bg)] text-[var(--color-success)]' : 'border-[var(--color-border)] bg-[var(--color-bg)]'}`}>
                                                 #{index + 1}
                                             </div>
                                             <div className="flex flex-col flex-1">
@@ -500,7 +498,7 @@ export default function Dashboard() {
                                                 <span className="text-xs uppercase font-bold opacity-80 mt-1">{team.plotsWon} Plots Owned</span>
                                             </div>
                                         </div>
-                                        <div className="flex flex-col items-center md:items-end w-full md:w-auto bg-black/5 p-2 border-2 border-black/10">
+                                        <div className="flex flex-col items-center md:items-end w-full md:w-auto opacity-90 p-2 border-2 border-[var(--color-border)]/10">
                                             <span className="text-xs font-bold uppercase opacity-80">Net Worth</span>
                                             <span className="font-mono font-black text-2xl md:text-3xl">₹ {team.netWorth.toLocaleString("en-IN")}</span>
                                         </div>
@@ -515,11 +513,11 @@ export default function Dashboard() {
                         <NeoCard className="p-0 overflow-hidden relative bg-[var(--color-bg)] w-full max-w-3xl aspect-square lg:aspect-auto lg:h-full">
                             <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/30">
                                 <div className="text-center">
-                                    <MapPin size={64} className="mx-auto mb-3 text-white opacity-70" />
-                                    <p className="font-black text-2xl uppercase text-white tracking-wider">
+                                    <MapPin size={64} className="mx-auto mb-3 text-[var(--color-bg)] opacity-70" />
+                                    <p className="font-black text-2xl uppercase text-[var(--color-bg)] tracking-wider">
                                         Waiting for Auction
                                     </p>
-                                    <p className="text-white/70 font-bold text-sm uppercase mt-1">
+                                    <p className="text-[var(--color-bg)] opacity-70 font-bold text-sm uppercase mt-1">
                                         {auctionStatus === "paused" ? "Auction is paused" : "Auction has not started yet"}
                                     </p>
                                 </div>
@@ -535,7 +533,7 @@ export default function Dashboard() {
 
                         {/* LEFT: Map Panel */}
                         <div className="lg:col-span-8 flex flex-col gap-3 min-h-0">
-                            <NeoCard className="flex flex-col shrink-0 lg:flex-none border-4 border-black bg-[var(--color-primary)] text-white shadow-[8px_8px_0_black]">
+                            <NeoCard className="flex flex-col shrink-0 lg:flex-none border-4 border-[var(--color-border)] bg-[var(--color-primary)] text-[var(--color-bg)] shadow-[8px_8px_0_var(--neo-shadow-color)]">
                                 <h2 className="text-sm font-black uppercase mb-2 opacity-80 flex items-center gap-2">
                                     <AlertTriangle size={16} /> Active Policy (Round {currentRound})
                                 </h2>
@@ -610,7 +608,7 @@ export default function Dashboard() {
                                                 </div>
 
                                                 {activeOffer ? (
-                                                    <div className="bg-[var(--color-warning)] p-2 neo-border flex justify-between items-center text-black gap-2">
+                                                    <div className="bg-[var(--color-surface)] p-2 neo-border flex justify-between items-center text-[var(--color-text)] gap-2">
                                                         <div className="flex flex-col">
                                                             <span className="text-xs font-bold uppercase">Listed for ₹{Number(activeOffer.asking_price).toLocaleString("en-IN")}</span>
                                                             <span className="text-[10px] font-black animate-pulse">WAITING FOR BUYER...</span>
@@ -718,11 +716,11 @@ export default function Dashboard() {
                                                                 key={sellCountdown}
                                                                 initial={{ scale: 2, opacity: 0 }}
                                                                 animate={{ scale: 1, opacity: 1 }}
-                                                                className="text-white font-black text-[15rem] leading-none drop-shadow-[10px_10px_0_black]"
+                                                                className="text-[var(--color-bg)] font-black text-[15rem] leading-none drop-shadow-[10px_10px_0_var(--neo-shadow-color)]"
                                                             >
                                                                 {sellCountdown}
                                                             </motion.span>
-                                                            <p className="text-white font-black text-4xl mt-4 tracking-widest uppercase bg-black px-6 py-2 border-4 border-white">
+                                                            <p className="text-[var(--color-bg)] font-black text-4xl mt-4 tracking-widest uppercase bg-[var(--color-text)] px-6 py-2 border-4 border-[var(--color-bg)]">
                                                                 Going Once...
                                                             </p>
                                                         </motion.div>
@@ -845,7 +843,7 @@ export default function Dashboard() {
                                                 key={`${bid.timestamp}-${i}`}
                                                 initial={{ x: 20, opacity: 0 }}
                                                 animate={{ x: 0, opacity: 1 }}
-                                                className="flex flex-col bg-[var(--color-surface)] p-2 border-2 border-[var(--color-border)] font-bold shadow-[3px_3px_0_black]"
+                                                className="flex flex-col bg-[var(--color-surface)] p-2 border-2 border-[var(--color-border)] font-bold shadow-[3px_3px_0_var(--neo-shadow-color)]"
                                             >
                                                 <div className="flex justify-between items-center">
                                                     <span className="uppercase text-sm">{bid.team_name}</span>

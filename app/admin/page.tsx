@@ -8,6 +8,7 @@ import NeoInput from "@/components/neo/NeoInput";
 import NeoBadge from "@/components/neo/NeoBadge";
 import NeoTable from "@/components/neo/NeoTable";
 import CityMap from "@/components/map/CityMap";
+import { ThemeChanger } from "@/components/ThemeChanger";
 import { ColumnDef } from "@tanstack/react-table";
 import { useSocket } from "../../context/socket-context";
 import NeoLayout from "../../components/neo/NeoLayout";
@@ -412,7 +413,7 @@ export default function AdminPage() {
     return (
         <NeoLayout containerized={false}>
             <div className="min-h-screen lg:h-screen flex flex-col lg:overflow-hidden px-3 py-2">
-                <header className="flex flex-col md:flex-row justify-between items-center mb-2 gap-2 border-b-4 border-black pb-2">
+                <header className="flex flex-col md:flex-row justify-between items-center mb-2 gap-2 border-b-4 border-[var(--color-border)] pb-2">
                     <div className="flex items-center gap-4">
                         <ShieldAlert size={48} className="text-[var(--color-primary)]" strokeWidth={3} />
                         <h1 className="text-4xl font-black uppercase tracking-normal">
@@ -440,6 +441,8 @@ export default function AdminPage() {
                             <span className="font-bold uppercase text-xs block">Round</span>
                             <span className="font-black text-2xl">{currentRound}</span>
                         </div>
+
+                        <ThemeChanger />
 
                         <NeoButton
                             variant="danger"
@@ -541,7 +544,7 @@ export default function AdminPage() {
                                     <button
                                         key={r}
                                         onClick={() => handleSetRound(r)}
-                                        className={`flex-1 py-1.5 text-[10px] font-black uppercase border-2 border-transparent transition-all ${currentRound === r ? "bg-[var(--color-primary)] text-white border-[var(--color-border)]" : "hover:bg-[var(--color-surface)]"}`}
+                                        className={`flex-1 py-1.5 text-[10px] font-black uppercase border-2 border-transparent transition-all ${currentRound === r ? "bg-[var(--color-primary)] text-[var(--color-bg)] border-[var(--color-border)]" : "hover:bg-[var(--color-surface)]"}`}
                                     >
                                         R{r}
                                     </button>
@@ -757,7 +760,7 @@ export default function AdminPage() {
                 {/* Mobile FAB */}
                 <button
                     onClick={() => setIsSidebarOpen(true)}
-                    className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-[var(--color-primary)] text-white rounded-full flex items-center justify-center border-4 border-[var(--color-border)] shadow-[4px_4px_0_var(--color-border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+                    className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-[var(--color-primary)] text-[var(--color-bg)] rounded-full flex items-center justify-center border-4 border-[var(--color-border)] shadow-[4px_4px_0_var(--color-border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
                 >
                     <Menu size={24} />
                 </button>
@@ -770,7 +773,7 @@ export default function AdminPage() {
                             <div className="relative ml-auto w-[85%] max-w-sm h-full bg-[var(--color-bg)] border-l-4 border-[var(--color-border)] shadow-[-8px_0_0_rgba(0,0,0,0.5)] flex flex-col pointer-events-auto overflow-hidden animate-in slide-in-from-right duration-200">
                                 <div className="flex justify-between items-center p-4 border-b-4 border-[var(--color-border)] bg-[var(--color-surface)] shrink-0">
                                     <h2 className="font-black text-xl uppercase">Extra Info</h2>
-                                    <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-white border-2 border-transparent hover:border-black transition-colors rounded-sm">
+                                    <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-[var(--color-bg)] border-2 border-transparent hover:border-[var(--color-border)] transition-colors rounded-sm">
                                         <X size={24} />
                                     </button>
                                 </div>
@@ -789,7 +792,7 @@ export default function AdminPage() {
                                                 <NeoBadge variant="info">Plot #{currentPlot?.number || "-"}</NeoBadge>
                                             </div>
                                             <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                                                <div className="bg-white font-black text-xs uppercase px-2 py-1 border-2 border-black">Click Fullscreen</div>
+                                                <div className="bg-[var(--color-bg)] font-black text-xs uppercase px-2 py-1 border-2 border-[var(--color-border)]">Click Fullscreen</div>
                                             </div>
                                         </div>
                                     </NeoCard>
@@ -822,7 +825,7 @@ export default function AdminPage() {
                     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
                         <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setIsImageModalOpen(false)} />
                         <div className="relative w-full max-w-5xl h-[80vh] bg-[var(--color-bg)] p-2 neo-border flex flex-col pointer-events-auto shadow-[12px_12px_0_rgba(0,0,0,1)]">
-                            <div className="flex justify-between items-center bg-[var(--color-primary)] text-white p-2 border-2 border-black mb-2 shrink-0">
+                            <div className="flex justify-between items-center bg-[var(--color-primary)] text-[var(--color-bg)] p-2 border-2 border-[var(--color-border)] mb-2 shrink-0">
                                 <h2 className="font-black text-lg uppercase flex items-center gap-2">
                                     <MapPin size={20} /> Plot Map
                                 </h2>
@@ -830,7 +833,7 @@ export default function AdminPage() {
                                     <X size={24} />
                                 </button>
                             </div>
-                            <div className="flex-1 bg-white border-2 border-[var(--color-border)] relative overflow-hidden flex items-center justify-center p-4">
+                            <div className="flex-1 bg-[var(--color-bg)] border-2 border-[var(--color-border)] relative overflow-hidden flex items-center justify-center p-4">
                                 <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={teams} />
                             </div>
                         </div>

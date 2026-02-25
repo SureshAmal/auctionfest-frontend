@@ -32,7 +32,7 @@ export default function NeoTable<TData, TValue>({ columns, data, onRowClick }: N
 
     return (
         <div className="w-full h-full overflow-auto bg-[var(--color-bg)] text-[var(--color-text)] relative">
-            <table className="w-full text-center border-separate border-spacing-0 border-4 border-black border-r-0 border-b-0">
+            <table className="w-full text-center border-separate border-spacing-0 border-4 border-[var(--color-border)] border-r-0 border-b-0">
                 <thead className="text-[var(--color-text)]">
                     {table.getHeaderGroups().map((headerGroup) => (
                         <tr key={headerGroup.id}>
@@ -43,7 +43,7 @@ export default function NeoTable<TData, TValue>({ columns, data, onRowClick }: N
                                     <th
                                         key={header.id}
                                         onClick={header.column.getToggleSortingHandler()}
-                                        className={`sticky top-0 z-30 bg-[var(--color-surface)] py-3 px-3 font-black uppercase tracking-wider border-r-4 border-b-4 border-black last:border-r-0 ${isSortable ? "cursor-pointer hover:bg-[#ffe55c] active:bg-[#ffed99] transition-colors select-none" : ""}`}
+                                        className={`sticky top-0 z-30 bg-[var(--color-surface)] py-3 px-3 font-black uppercase tracking-wider border-r-4 border-b-4 border-[var(--color-border)] last:border-r-0 ${isSortable ? "cursor-pointer hover:brightness-110 active:brightness-120 transition-colors select-none" : ""}`}
                                     >
                                         <div className="flex items-center justify-center gap-1">
                                             {header.isPlaceholder
@@ -67,13 +67,13 @@ export default function NeoTable<TData, TValue>({ columns, data, onRowClick }: N
                         </tr>
                     ))}
                 </thead>
-                <tbody className="bg-[var(--color-bg)] [&>tr>td]:border-b-4 [&>tr>td]:border-r-4 [&>tr>td]:border-black [&>tr>td:last-child]:border-r-0 relative z-0">
+                <tbody className="bg-[var(--color-bg)] [&>tr>td]:border-b-4 [&>tr>td]:border-r-4 [&>tr>td]:border-[var(--color-border)] [&>tr>td:last-child]:border-r-0 relative z-0">
                     {table.getRowModel().rows?.length ? (
                         table.getRowModel().rows.map((row) => (
                             <tr
                                 key={row.id}
                                 onClick={() => onRowClick && onRowClick(row.original)}
-                                className={`hover:bg-black/10 odd:bg-[var(--color-bg)] even:bg-[var(--color-bg)] font-bold text-sm ${onRowClick ? "cursor-pointer" : ""}`}
+                                className={`hover:brightness-95 odd:bg-[var(--color-bg)] even:bg-[var(--color-bg)] font-bold text-sm ${onRowClick ? "cursor-pointer" : ""}`}
                             >
                                 {row.getVisibleCells().map((cell) => (
                                     <td key={cell.id} className="py-2 px-3 truncate">
