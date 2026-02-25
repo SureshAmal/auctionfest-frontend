@@ -221,8 +221,19 @@ export default function Dashboard() {
             socket.connect();
         }
 
-        // Only join once
-        socket.emit("join_auction", { team_id: userTeam.id });
+        const joinRoom = () => {
+            if (userTeamRef.current?.id) {
+                socket.emit("join_auction", { team_id: userTeamRef.current.id });
+            } else if (userTeam?.id) {
+                socket.emit("join_auction", { team_id: userTeam.id });
+            }
+        };
+
+        if (isConnected) {
+            joinRoom();
+        }
+
+        socket.on("connect", joinRoom);
 
         socket.on("connection_rejected", (data: any) => {
             console.error("Connection rejected:", data.message);
@@ -237,11 +248,15 @@ export default function Dashboard() {
 
             if (data.current_plot_number) {
                 setPlots(prev => prev.map(p => {
+                    // The plot we landed on becomes active
                     if (p.number === data.current_plot_number) {
                         return { ...p, status: "active" };
                     }
+
+                    // If we just moved forward normally, the old active plot becomes sold.
+                    // If we reversed, the old active plot becomes pending.
                     if (p.status === "active") {
-                        return { ...p, status: "sold" };
+                        return { ...p, status: data.status === "reversed" ? "pending" : "sold" };
                     }
                     return p;
                 }));
@@ -340,7 +355,23 @@ export default function Dashboard() {
         socket.on("auction_state_update", handleStateUpdate);
         socket.on("new_bid", handleNewBid);
         socket.on("round_change", handleRoundChange);
-        socket.on("plot_adjustment", handlePlotAdjustment);
+        socket.on("plot_adjustment", (data: any) => {
+            // Update plot with the new round_adjustment, parsing float to handle scientific notation
+            setPlots((prev: any[]) => prev.map(p => {
+                if (p.number === data.plot_number) {
+                    return { ...p, round_adjustment: parseFloat(data.plot.round_adjustment) || 0 };
+                }
+                return p;
+            }));
+
+            // Also update currentPlot if it's the one that got adjusted
+            setCurrentPlot((prev: any) => {
+                if (prev?.number === data.plot_number) {
+                    return { ...prev, round_adjustment: parseFloat(data.plot.round_adjustment) || 0 };
+                }
+                return prev;
+            });
+        });
         socket.on("auction_reset", handleReset);
         socket.on("team_update", handleTeamUpdate);
         socket.on("active_question", handleActiveQuestion);
@@ -371,6 +402,7 @@ export default function Dashboard() {
         });
 
         return () => {
+            socket.off("connect", joinRoom);
             socket.off("auction_state_update");
             socket.off("new_bid");
             socket.off("round_change");
@@ -665,39 +697,49 @@ export default function Dashboard() {
                                                         </NeoButton>
                                                     </div>
                                                 ) : (
-                                                    <div className="flex gap-2">
-                                                        <input
-                                                            type="number"
-                                                            placeholder={`₹${Math.floor(basePrice)} - ₹${Math.floor(maxAllowed)}`}
-                                                            className="neo-input flex-1 text-sm py-1 px-2 min-w-0 bg-[var(--color-bg)]"
-                                                            value={markupInput[plot.number] ?? Math.floor(basePrice)}
-                                                            onChange={(e) => setMarkupInput(prev => ({ ...prev, [plot.number]: e.target.value }))}
-                                                            max={maxAllowed}
-                                                        />
-                                                        <NeoButton
-                                                            variant="primary"
-                                                            className="text-xs py-1 px-3"
-                                                            onClick={async () => {
-                                                                const price = parseFloat(markupInput[plot.number]);
-                                                                if (!price || price > Math.floor(maxAllowed) || price < 1) return alert(`Invalid price! Max: ₹${Math.floor(maxAllowed).toLocaleString("en-IN")}`);
+                                                    <div className="flex flex-col gap-1">
+                                                        <div className="flex gap-2">
+                                                            <input
+                                                                type="number"
+                                                                placeholder={`₹${Math.floor(basePrice)} - ₹${Math.floor(maxAllowed)}`}
+                                                                className="neo-input flex-1 text-sm py-1 px-2 min-w-0 bg-[var(--color-bg)]"
+                                                                value={markupInput[plot.number] ?? ""}
+                                                                onChange={(e) => setMarkupInput(prev => ({ ...prev, [plot.number]: e.target.value }))}
+                                                                max={maxAllowed}
+                                                            />
+                                                            <NeoButton
+                                                                variant="primary"
+                                                                className="text-xs py-1 px-3"
+                                                                onClick={async () => {
+                                                                    // Use typed value or fall back to base price
+                                                                    const rawVal = markupInput[plot.number];
+                                                                    const price = rawVal && rawVal.trim() !== "" ? parseFloat(rawVal) : Math.floor(basePrice);
 
-                                                                try {
-                                                                    const res = await fetch("/api/rebid/offer", {
-                                                                        method: "POST",
-                                                                        headers: { "Content-Type": "application/json" },
-                                                                        body: JSON.stringify({
-                                                                            team_id: userTeam.id,
-                                                                            plot_number: plot.number,
-                                                                            asking_price: price
-                                                                        })
-                                                                    });
-                                                                    if (!res.ok) alert((await res.json()).detail);
-                                                                    else setMarkupInput(prev => ({ ...prev, [plot.number]: "" }));
-                                                                } catch (e) { console.error(e); }
-                                                            }}
-                                                        >
-                                                            SELL
-                                                        </NeoButton>
+                                                                    if (!price || isNaN(price) || price > Math.floor(maxAllowed) || price < Math.floor(basePrice)) {
+                                                                        return alert(`Invalid price! Min: ₹${Math.floor(basePrice).toLocaleString("en-IN")} — Max: ₹${Math.floor(maxAllowed).toLocaleString("en-IN")}`);
+                                                                    }
+
+                                                                    try {
+                                                                        const res = await fetch("/api/rebid/offer", {
+                                                                            method: "POST",
+                                                                            headers: { "Content-Type": "application/json" },
+                                                                            body: JSON.stringify({
+                                                                                team_id: userTeam.id,
+                                                                                plot_number: plot.number,
+                                                                                asking_price: price
+                                                                            })
+                                                                        });
+                                                                        if (!res.ok) alert((await res.json()).detail);
+                                                                        else setMarkupInput(prev => ({ ...prev, [plot.number]: "" }));
+                                                                    } catch (e) { console.error(e); }
+                                                                }}
+                                                            >
+                                                                SELL
+                                                            </NeoButton>
+                                                        </div>
+                                                        <p className="text-[10px] font-bold opacity-50 px-1">
+                                                            Min: ₹{Math.floor(basePrice).toLocaleString("en-IN")} — Max: ₹{Math.floor(maxAllowed).toLocaleString("en-IN")}
+                                                        </p>
                                                     </div>
                                                 )}
                                             </div>
@@ -893,7 +935,7 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                <TrackingWindow currentPlot={currentPlot} status={auctionStatus} plots={plots} allTeams={allTeams} userTeam={userTeam} />
+                <TrackingWindow currentPlot={currentPlot} status={auctionStatus} plots={plots} allTeams={allTeams} userTeam={userTeam} currentRound={currentRound} />
             </div>
         </NeoLayout>
     );

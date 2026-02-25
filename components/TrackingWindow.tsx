@@ -13,9 +13,11 @@ interface TrackingWindowProps {
     plots?: any[];
     allTeams?: any[];
     userTeam?: any;
+    /** The current auction round (determines which city SVG to use). */
+    currentRound?: number;
 }
 
-export default function TrackingWindow({ currentPlot, status, plots = [], allTeams = [], userTeam }: TrackingWindowProps) {
+export default function TrackingWindow({ currentPlot, status, plots = [], allTeams = [], userTeam, currentRound = 1 }: TrackingWindowProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [scale, setScale] = useState(1);
@@ -187,7 +189,7 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                                     }}
                                 >
                                     <div className="absolute inset-0 w-full h-full object-contain group-hover:scale-[1.02] transition-transform pointer-events-none p-4">
-                                        <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} />
+                                        <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} currentRound={currentRound} />
                                     </div>
                                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/20 transition-opacity pointer-events-none">
                                         <span className="bg-[var(--color-text)] text-[var(--color-bg)] px-2 py-1 text-xs font-bold uppercase">Click to Zoom</span>
@@ -289,7 +291,7 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                                 dragMomentum={false}
                                 className="w-[80vw] h-[80vh] shadow-2xl bg-[var(--color-bg)] border-4 border-[var(--color-border)]"
                             >
-                                <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} />
+                                <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} currentRound={currentRound} />
                             </motion.div>
                         </motion.div>
                     </div>

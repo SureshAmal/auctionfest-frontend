@@ -164,7 +164,16 @@ export default function AdminPage() {
     // Socket Listeners
     useEffect(() => {
         if (!socket) return;
-        socket.emit("join_auction", { role: "admin" });
+
+        const joinRoom = () => {
+            socket.emit("join_auction", { role: "admin" });
+        };
+
+        if (socket.connected) {
+            joinRoom();
+        }
+
+        socket.on("connect", joinRoom);
 
         const handleStateUpdate = (data: any) => {
             setAuctionState(data);
@@ -173,7 +182,7 @@ export default function AdminPage() {
                 setPlots(prev => prev.map(p => ({
                     ...p,
                     status: p.number === data.current_plot_number ? "active" :
-                        p.status === "active" ? "sold" : p.status,
+                        p.status === "active" ? (data.status === "reversed" ? "pending" : "sold") : p.status,
                 })));
                 setCurrentPlot({ number: data.current_plot_number });
             }
@@ -229,6 +238,7 @@ export default function AdminPage() {
         socket.on("auction_reset", () => window.location.reload());
 
         return () => {
+            socket.off("connect", joinRoom);
             socket.off("auction_state_update");
             socket.off("round_change");
             socket.off("plot_adjustment");
@@ -255,7 +265,7 @@ export default function AdminPage() {
         }
     };
 
-    const status = auctionState?.status || "not_started";
+    const status = auctionState?.status || "notstarted";
     const isRunning = status === "running" || status === "selling";
     const isPaused = status === "paused";
     const isCompleted = status === "completed";
@@ -421,32 +431,36 @@ export default function AdminPage() {
                         </h1>
                     </div>
 
-                    <div className="flex flex-wrap gap-4 items-center">
-                        <div className="flex items-center gap-2 neo-border px-4 py-2 bg-[var(--color-bg)]">
+                    <div className="flex flex-wrap gap-4 items-center h-12">
+                        <div className="flex items-center gap-2 neo-border px-4 h-full bg-[var(--color-bg)]">
                             <Users size={20} className="text-[var(--color-secondary)]" />
                             <span className="font-black text-xl">{connectedCount}</span>
                             <span className="font-bold uppercase text-sm">Online</span>
                         </div>
 
-                        <NeoBadge variant={isRunning ? "success" : isPaused ? "neutral" : isCompleted ? "danger" : "neutral"}>
+                        <NeoBadge variant={isRunning ? "success" : isPaused ? "neutral" : isCompleted ? "danger" : "neutral"} className="h-full flex items-center justify-center px-6">
                             {status.replace("_", " ")}
                         </NeoBadge>
 
-                        <div className="neo-border px-4 py-2 bg-[var(--color-surface)]">
-                            <span className="font-bold uppercase text-xs block">Plot</span>
-                            <span className="font-black text-2xl">#{auctionState?.current_plot_number || "-"}</span>
+                        <div className="neo-border px-4 h-full flex flex-col justify-center items-center bg-[var(--color-surface)]">
+                            <div className="flex flex-col items-center justify-center leading-none">
+                                <span className="font-bold uppercase text-[10px] opacity-70">Plot</span>
+                                <span className="font-black text-xl">#{auctionState?.current_plot_number || "-"}</span>
+                            </div>
                         </div>
 
-                        <div className="neo-border px-4 py-2 bg-[var(--color-surface)]">
-                            <span className="font-bold uppercase text-xs block">Round</span>
-                            <span className="font-black text-2xl">{currentRound}</span>
+                        <div className="neo-border px-4 h-full flex flex-col justify-center items-center bg-[var(--color-surface)]">
+                            <div className="flex flex-col items-center justify-center leading-none">
+                                <span className="font-bold uppercase text-[10px] opacity-70">Round</span>
+                                <span className="font-black text-xl">{currentRound}</span>
+                            </div>
                         </div>
 
-                        <ThemeChanger />
+                        <ThemeChanger className="h-full" />
 
                         <NeoButton
                             variant="danger"
-                            className="text-xs py-2 font-black"
+                            className="text-sm font-black h-full px-6 flex items-center justify-center"
                             onClick={() => {
                                 localStorage.removeItem("admin_auth");
                                 setIsAdminAuth(false);
@@ -712,7 +726,6 @@ export default function AdminPage() {
                                     const tableColumns: ColumnDef<Plot>[] = [
                                         { accessorKey: "number", header: "#", cell: ({ row }) => <span className="font-bold bg-[var(--color-bg)] text-sm">{row.original.number}</span> },
                                         { accessorKey: "plot_type", header: "Type", cell: ({ row }) => <span className="text-xs font-bold uppercase">{row.original.plot_type || "-"}</span> },
-                                        { accessorKey: "actual_area", header: "Area", cell: ({ row }) => <span className="font-mono text-xs">{row.original.actual_area?.toLocaleString() || "-"}</span> },
                                         {
                                             accessorKey: "total_plot_price",
                                             header: "Price",
@@ -722,7 +735,7 @@ export default function AdminPage() {
                                             accessorKey: "round_adjustment",
                                             header: "Adj.",
                                             cell: ({ row }) => {
-                                                const adj = row.original.round_adjustment || 0;
+                                                const adj = Number(row.original.round_adjustment || 0);
                                                 return <span className={`font-mono text-xs font-bold ${adj > 0 ? "text-[var(--color-success)]" : adj < 0 ? "text-[var(--color-danger)]" : ""}`}>
                                                     {adj !== 0 ? `${adj > 0 ? "+" : ""}₹${adj.toLocaleString("en-IN")}` : "-"}
                                                 </span>
@@ -765,63 +778,76 @@ export default function AdminPage() {
                     <Menu size={24} />
                 </button>
 
-                {/* Mobile Sidebar Overlay */}
                 {
                     isSidebarOpen && (
-                        <div className="fixed inset-0 z-50 flex">
-                            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />
-                            <div className="relative ml-auto w-[85%] max-w-sm h-full bg-[var(--color-bg)] border-l-4 border-[var(--color-border)] shadow-[-8px_0_0_rgba(0,0,0,0.5)] flex flex-col pointer-events-auto overflow-hidden animate-in slide-in-from-right duration-200">
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />
+                            <div className="relative w-full max-w-6xl h-[85vh] bg-[var(--color-bg)] border-4 border-[var(--color-border)] shadow-[12px_12px_0_rgba(0,0,0,1)] flex flex-col pointer-events-auto overflow-hidden animate-in zoom-in-95 duration-200">
                                 <div className="flex justify-between items-center p-4 border-b-4 border-[var(--color-border)] bg-[var(--color-surface)] shrink-0">
-                                    <h2 className="font-black text-xl uppercase">Extra Info</h2>
+                                    <h2 className="font-black text-2xl uppercase tracking-wider">Extra Info</h2>
                                     <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-[var(--color-bg)] border-2 border-transparent hover:border-[var(--color-border)] transition-colors rounded-sm">
-                                        <X size={24} />
+                                        <X size={28} />
                                     </button>
                                 </div>
-                                <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-20">
-                                    {/* Current Plot View - Clickable */}
-                                    <NeoCard className="p-0 overflow-hidden relative bg-[var(--color-bg)] cursor-pointer hover:shadow-none translate-x-[2px] translate-y-[2px] transition-all hover:-translate-x-0 hover:-translate-y-0"
-                                        onClick={() => setIsImageModalOpen(true)}>
-                                        <h3 className="text-sm font-black uppercase m-2 flex items-center gap-2">
-                                            <MapPin size={16} className="text-[var(--color-secondary)]" /> Current Plot Mode
-                                        </h3>
-                                        <div className="relative w-full aspect-square bg-gray-100 border-t-2 border-[var(--color-border)]">
-                                            <div className="absolute inset-0 pointer-events-none p-2 w-full h-full opacity-70">
-                                                <CityMap
-                                                    currentPlotNumber={currentPlot?.number}
-                                                    plots={plots}
-                                                    allTeams={teams}
-                                                    onPlotClick={(id) => {
-                                                        const p = plots.find(p => p.number.toString() === id);
-                                                        if (p) setCurrentPlot(p);
-                                                    }}
-                                                />
-                                            </div>
-                                            <div className="absolute top-2 right-2">
-                                                <NeoBadge variant="info">Plot #{currentPlot?.number || "-"}</NeoBadge>
-                                            </div>
-                                            <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                                                <div className="bg-[var(--color-bg)] font-black text-xs uppercase px-2 py-1 border-2 border-[var(--color-border)]">Click Fullscreen</div>
-                                            </div>
-                                        </div>
-                                    </NeoCard>
 
-                                    {/* Header-style connection count for sidebar */}
-                                    <div className="flex items-center gap-2 neo-border px-4 py-2 bg-[var(--color-surface)]">
-                                        <Users size={20} className="text-[var(--color-secondary)]" />
-                                        <div className="flex-1">
-                                            <span className="font-black text-xl leading-none block">{connectedCount}</span>
-                                            <span className="font-bold uppercase text-[10px] block opacity-70">Online Users</span>
+                                <div className="flex-1 overflow-hidden p-4">
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
+                                        {/* Left: Map (Takes up 2/3 of the space) */}
+                                        <div className="lg:col-span-2 h-full flex flex-col min-h-0">
+                                            <NeoCard className="p-0 overflow-hidden relative bg-[var(--color-bg)] flex-1 flex flex-col cursor-pointer hover:shadow-none translate-x-[2px] translate-y-[2px] transition-all hover:-translate-x-0 hover:-translate-y-0"
+                                                onClick={() => setIsImageModalOpen(true)}>
+                                                <h3 className="text-lg font-black uppercase m-3 flex items-center gap-2 shrink-0">
+                                                    <MapPin size={20} className="text-[var(--color-secondary)]" /> Current Plot Mode (Map)
+                                                </h3>
+                                                <div className="relative flex-1 bg-gray-100 border-t-2 border-[var(--color-border)] min-h-[300px]">
+                                                    <div className="absolute inset-0 pointer-events-none p-4 w-full h-full opacity-70">
+                                                        <CityMap
+                                                            currentPlotNumber={currentPlot?.number}
+                                                            plots={plots}
+                                                            allTeams={teams}
+                                                            currentRound={currentRound}
+                                                            onPlotClick={(id) => {
+                                                                const p = plots.find(p => p.number.toString() === id);
+                                                                if (p) setCurrentPlot(p);
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div className="absolute top-4 right-4">
+                                                        <NeoBadge variant="info" className="text-lg px-4 py-1">Plot #{currentPlot?.number || "-"}</NeoBadge>
+                                                    </div>
+                                                    <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                                        <div className="bg-[var(--color-bg)] font-black text-lg uppercase px-4 py-2 border-4 border-[var(--color-border)]">Click Fullscreen</div>
+                                                    </div>
+                                                </div>
+                                            </NeoCard>
                                         </div>
-                                    </div>
-                                    <div className="space-y-1">
-                                        {connectedTeams.length > 0 ? connectedTeams.map((name, i) => (
-                                            <div key={i} className="flex items-center gap-2 bg-[var(--color-bg)] p-1.5 border border-[var(--color-border)] font-bold text-xs">
-                                                <span className="w-2 h-2 bg-[var(--color-success)] border border-[var(--color-border)]" />
-                                                <span>{name}</span>
+
+                                        {/* Right: Connected Users (Takes up 1/3 of the space) */}
+                                        <div className="lg:col-span-1 h-full flex flex-col gap-4 min-h-0">
+                                            <div className="flex items-center gap-3 neo-border px-4 py-3 bg-[var(--color-surface)] shrink-0">
+                                                <Users size={28} className="text-[var(--color-secondary)]" />
+                                                <div className="flex-1">
+                                                    <span className="font-black text-3xl leading-none block">{connectedCount}</span>
+                                                    <span className="font-bold uppercase text-xs block opacity-70 tracking-wider">Connected Users</span>
+                                                </div>
                                             </div>
-                                        )) : (
-                                            <p className="text-[var(--color-text)] opacity-50 text-xs italic border border-dashed border-[var(--color-border)] p-2">No one connected</p>
-                                        )}
+
+                                            <div className="flex-1 overflow-y-auto neo-border bg-[var(--color-surface)] p-2">
+                                                <div className="space-y-2">
+                                                    {connectedTeams.length > 0 ? connectedTeams.map((name, i) => (
+                                                        <div key={i} className="flex items-center gap-3 bg-[var(--color-bg)] p-3 border-2 border-[var(--color-border)] font-black text-sm uppercase">
+                                                            <span className="w-3 h-3 bg-[var(--color-success)] border-2 border-[var(--color-border)] shadow-[2px_2px_0_var(--color-border)]" />
+                                                            <span className="truncate">{name}</span>
+                                                        </div>
+                                                    )) : (
+                                                        <div className="flex flex-col items-center justify-center h-40 text-[var(--color-text)] opacity-40 border-4 border-dashed border-[var(--color-border)] p-4 text-center">
+                                                            <Users size={32} className="mb-2" />
+                                                            <p className="font-bold uppercase text-sm">No active connections</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -846,6 +872,7 @@ export default function AdminPage() {
                                     currentPlotNumber={currentPlot?.number}
                                     plots={plots}
                                     allTeams={teams}
+                                    currentRound={currentRound}
                                     onPlotClick={(id) => {
                                         const p = plots.find(p => p.number.toString() === id);
                                         if (p && !isImageModalOpen) setCurrentPlot(p);

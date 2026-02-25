@@ -24,8 +24,13 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         // We'll create one connection.
         const socketUrl = `http://${window.location.hostname || "localhost"}:8000`;
         const socketInstance = io(socketUrl, {
-            transports: ["websocket"], // Force websocket to avoid polling issues
+            transports: ["polling", "websocket"], // Allow polling fallback for poor networks
             autoConnect: true,
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 20000,
         });
 
         socketInstance.on("connect", () => {

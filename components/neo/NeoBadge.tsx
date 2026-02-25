@@ -5,9 +5,10 @@ import React from "react";
 interface NeoBadgeProps {
     variant?: "success" | "danger" | "warning" | "info" | "neutral";
     children: React.ReactNode;
+    className?: string;
 }
 
-export default function NeoBadge({ variant = "neutral", children }: NeoBadgeProps) {
+export default function NeoBadge({ variant = "neutral", children, className = "" }: NeoBadgeProps) {
     const variants = {
         success: "bg-[var(--color-success)] text-[var(--color-text)]",
         danger: "bg-[var(--color-danger)] text-[var(--color-bg)]",
@@ -18,7 +19,7 @@ export default function NeoBadge({ variant = "neutral", children }: NeoBadgeProp
 
     return (
         <span
-            className={`inline-block px-2 py-1 text-xs font-bold uppercase border-2 border-[var(--color-border)] ${variants[variant]}`}
+            className={`inline-block px-2 py-1 text-xs font-bold uppercase border-2 border-[var(--color-border)] ${variants[variant]} ${className}`}
             style={{ borderRadius: "var(--neo-radius)" }}
         >
             {children}

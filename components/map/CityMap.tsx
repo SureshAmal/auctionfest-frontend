@@ -55,7 +55,7 @@ export default function CityMap({ currentPlotNumber, plots = [], allTeams = [], 
         });
 
         setCenters(newCenters);
-    }, []);
+    }, [currentRound]);
 
     // Throttle helper to reduce hover lag
     const hoverTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -251,10 +251,9 @@ export default function CityMap({ currentPlotNumber, plots = [], allTeams = [], 
                 )}
 
                 <svg
-                    className="absolute inset-4 pointer-events-none"
+                    className="absolute inset-0 pointer-events-none w-full h-full"
                     viewBox={currentRound > 1 ? "0 0 3714 3385" : "0 0 3169 3024"}
                     preserveAspectRatio="xMidYMid meet"
-                    style={{ width: 'calc(100% - 2rem)', height: 'calc(100% - 2rem)' }}
                 >
                     {Object.entries(centers).map(([id, pos]) => {
                         const isRecent = recentPlotNumbers.has(Number(id));

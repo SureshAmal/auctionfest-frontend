@@ -95,7 +95,7 @@ export default function LeaderboardPage() {
 
         // Listen for new bids
         socket.on("new_bid", (data: any) => {
-            setPlots(prev => prev.map(p => p.number === data.plot.number ? { ...p, current_bid: data.plot.current_bid, winner_team_id: data.plot.winner_team_id } : p));
+            setPlots(prev => prev.map(p => p.number === data.plot_number ? { ...p, current_bid: data.amount, winner_team_id: data.team_id } : p));
         });
 
         // Complete synchronization

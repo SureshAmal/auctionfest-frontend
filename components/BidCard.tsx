@@ -47,7 +47,7 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
             setError("");
             setSuccessMsg("");
         }
-    }, [currentPlot?.number]);
+    }, [currentPlot?.number, currentPlot?.current_bid]);
 
     /** Place a bid via socket, with client-side validation. */
     const handlePlaceBid = () => {
@@ -154,8 +154,8 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
     const adjustedValue = (Number(currentPlot.current_bid) || Number(currentPlot.total_plot_price) || 0) + (Number(currentPlot.round_adjustment) || 0);
     // Min bid is based on actual bid, not adjusted value
     const minBid = actualBid > 0
-        ? actualBid + 100
-        : (adjustedValue || 1000);
+        ? actualBid + 100000
+        : (adjustedValue || 100000);
 
     /** Convert number to Indian words (Crore, Lakh, Thousand). */
     const numberToIndianWords = (num: number): string => {
@@ -265,8 +265,9 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
                         variant="secondary"
                         className="w-12 h-12 flex items-center justify-center font-black text-2xl shrink-0"
                         onClick={() => {
+                            const step = currentRound === 1 ? 100000 : 100000;
                             const currentVal = parseInt(bidAmount) || minBid;
-                            const newVal = Math.max(minBid, currentVal - 500);
+                            const newVal = Math.max(minBid, currentVal - step);
                             setBidAmount(newVal.toString());
                         }}
                     >
@@ -290,8 +291,9 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
                         variant="primary"
                         className="w-12 h-12 flex items-center justify-center font-black text-2xl shrink-0"
                         onClick={() => {
-                            const currentVal = parseInt(bidAmount) || (minBid - 500);
-                            const newVal = currentVal + 500;
+                            const step = currentRound === 1 ? 100000 : 100000;
+                            const currentVal = parseInt(bidAmount) || (minBid - step);
+                            const newVal = currentVal + step;
                             setBidAmount(newVal.toString());
                         }}
                     >

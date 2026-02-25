@@ -389,7 +389,7 @@ const PRESETS: ThemePreset[] = [
     }
 ];
 
-export function ThemeChanger() {
+export function ThemeChanger({ className }: { className?: string }) {
     const { themeConfig, setThemeConfig } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
     const [localConfig, setLocalConfig] = useState<Record<string, string>>({});
@@ -453,7 +453,7 @@ export function ThemeChanger() {
             <NeoButton
                 variant="secondary"
                 onClick={() => setIsOpen(true)}
-                className="flex items-center gap-2"
+                className={`flex items-center gap-2 ${className || ""}`}
             >
                 <Palette size={18} />
                 <span>Theme</span>
