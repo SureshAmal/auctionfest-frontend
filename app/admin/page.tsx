@@ -82,6 +82,9 @@ export default function AdminPage() {
     const [confirmReset, setConfirmReset] = useState(false);
     const [connectedCount, setConnectedCount] = useState(0);
     const [connectedTeams, setConnectedTeams] = useState<string[]>([]);
+    
+    // Online teams with status
+    const [onlineTeams, setOnlineTeams] = useState<any[]>([]);
 
     // Sorting state
     const [sortKey, setSortKey] = useState<string>("number");
@@ -226,6 +229,16 @@ export default function AdminPage() {
             setConnectedCount(data.count);
             setConnectedTeams(data.teams || []);
         });
+        
+        // New: Handle online teams with status
+        socket.on("online-teams-updated", (teams: any[]) => {
+            console.log("[Socket] Online teams updated:", teams);
+            setOnlineTeams(teams);
+            // Also update connectedTeams array for backwards compatibility
+            setConnectedTeams(teams.map(t => t.teamName));
+            setConnectedCount(teams.length);
+        });
+        
         socket.on("auction_reset", () => window.location.reload());
 
         return () => {
@@ -239,6 +252,7 @@ export default function AdminPage() {
             socket.off("rebid_offer_cancelled");
             socket.off("new_bid");
             socket.off("connection_count");
+            socket.off("online-teams-updated");
             socket.off("auction_reset");
         };
     }, [socket]);
@@ -814,7 +828,26 @@ export default function AdminPage() {
                                         </div>
                                     </div>
                                     <div className="space-y-1">
-                                        {connectedTeams.length > 0 ? connectedTeams.map((name, i) => (
+                                        {onlineTeams.length > 0 ? onlineTeams.map((team, i) => (
+                                            <div key={i} className="flex items-center gap-2 bg-[var(--color-bg)] p-1.5 border border-[var(--color-border)] font-bold text-xs">
+                                                <span className={`w-2 h-2 border ${
+                                                    team.status === 'active' 
+                                                        ? 'bg-[var(--color-success)] border-[var(--color-border)]' 
+                                                        : team.status === 'idle'
+                                                            ? 'bg-yellow-400 border-[var(--color-border)]'
+                                                            : 'bg-red-500 border-[var(--color-border)] animate-pulse'
+                                                }`} />
+                                                <span className={team.status === 'reconnecting' ? 'opacity-50' : ''}>
+                                                    {team.teamName}
+                                                </span>
+                                                {team.status === 'reconnecting' && (
+                                                    <span className="text-[8px] text-red-500 font-bold">RECONNECTING</span>
+                                                )}
+                                                {team.status === 'idle' && (
+                                                    <span className="text-[8px] text-yellow-600 font-bold">IDLE</span>
+                                                )}
+                                            </div>
+                                        )) : connectedTeams.length > 0 ? connectedTeams.map((name, i) => (
                                             <div key={i} className="flex items-center gap-2 bg-[var(--color-bg)] p-1.5 border border-[var(--color-border)] font-bold text-xs">
                                                 <span className="w-2 h-2 bg-[var(--color-success)] border border-[var(--color-border)]" />
                                                 <span>{name}</span>

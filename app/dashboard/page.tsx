@@ -94,7 +94,7 @@ const AnimatedSvgPlot = ({ plotNumber }: { plotNumber: number | string }) => {
 
 export default function Dashboard() {
     const router = useRouter();
-    const { socket, isConnected } = useSocket();
+    const { socket, isConnected, isIntentionalDisconnect, setIntentionalDisconnect } = useSocket();
     const [userTeam, setUserTeam] = useState<any>(null);
     const [allTeams, setAllTeams] = useState<any[]>([]);
     const [plots, setPlots] = useState<any[]>([]);
@@ -102,6 +102,11 @@ export default function Dashboard() {
     const [auctionStatus, setAuctionStatus] = useState<string>("NOT_STARTED");
     const [currentRound, setCurrentRound] = useState(1);
     const [recentBids, setRecentBids] = useState<any[]>([]);
+
+    // Heartbeat and reconnection state
+    const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const isTabVisibleRef = useRef(true);
+    const hasRegisteredRef = useRef(false);
 
     // Policy Screen State
     const [activeQuestion, setActiveQuestion] = useState<string | null>(null);
@@ -200,6 +205,106 @@ export default function Dashboard() {
     }, [auctionStatus]);
     // -----------------------------------------------------
 
+    // Heartbeat functions
+    const startHeartbeat = useCallback(() => {
+        if (heartbeatIntervalRef.current) {
+            clearInterval(heartbeatIntervalRef.current);
+        }
+        
+        // Send heartbeat every 10 seconds when visible, 30 seconds when hidden
+        const interval = isTabVisibleRef.current ? 10000 : 30000;
+        
+        heartbeatIntervalRef.current = setInterval(() => {
+            if (socket && socket.connected && userTeam?.id) {
+                socket.emit("heartbeat", { team_id: userTeam.id });
+                console.log("[Heartbeat] Sent heartbeat");
+            }
+        }, interval);
+    }, [socket, userTeam?.id]);
+
+    const stopHeartbeat = useCallback(() => {
+        if (heartbeatIntervalRef.current) {
+            clearInterval(heartbeatIntervalRef.current);
+            heartbeatIntervalRef.current = null;
+        }
+    }, []);
+
+    const handleVisibilityChange = useCallback(() => {
+        const isVisible = !document.hidden;
+        isTabVisibleRef.current = isVisible;
+        
+        if (socket && socket.connected && userTeam?.id) {
+            socket.emit("tab-visibility", { 
+                team_id: userTeam.id, 
+                is_visible: isVisible 
+            });
+            console.log("[Visibility] Tab is now:", isVisible ? "visible" : "hidden");
+            
+            // Restart heartbeat with appropriate interval
+            if (isVisible) {
+                startHeartbeat();
+            } else {
+                // Switch to slower heartbeat when hidden
+                if (heartbeatIntervalRef.current) {
+                    clearInterval(heartbeatIntervalRef.current);
+                }
+                heartbeatIntervalRef.current = setInterval(() => {
+                    if (socket && socket.connected && userTeam?.id) {
+                        socket.emit("heartbeat", { team_id: userTeam.id });
+                    }
+                }, 30000);
+            }
+        }
+        
+        // If tab becomes visible and socket is disconnected (not intentional), try to reconnect
+        if (isVisible && socket && !socket.connected && !isIntentionalDisconnect) {
+            console.log("[Visibility] Tab visible, attempting reconnection");
+            socket.connect();
+        }
+    }, [socket, userTeam?.id, isIntentionalDisconnect, startHeartbeat]);
+
+    const handleOnlineEvent = useCallback(() => {
+        if (socket && !socket.connected && !isIntentionalDisconnect) {
+            console.log("[Online] Network back, attempting reconnection");
+            socket.connect();
+        }
+    }, [socket, isIntentionalDisconnect]);
+
+    const handleBeforeUnload = useCallback(() => {
+        if (userTeam?.id) {
+            // Use sendBeacon for reliable delivery even if page is unloading
+            navigator.sendBeacon(
+                `${typeof window !== 'undefined' ? `http://${window.location.hostname || "localhost"}:8000` : ''}/api/admin/team-disconnect`,
+                JSON.stringify({ team_id: userTeam.id })
+            );
+            console.log("[BeforeUnload] Sent disconnect beacon");
+        }
+    }, [userTeam?.id]);
+
+    // Browser event listeners setup
+    useEffect(() => {
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        window.addEventListener("online", handleOnlineEvent);
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        
+        // Handle freeze and resume (mobile browsers)
+        if (document.free !== undefined) {
+            document.addEventListener("freeze", () => {
+                if (socket && socket.connected && userTeam?.id) {
+                    socket.emit("heartbeat", { team_id: userTeam.id });
+                    console.log("[Freeze] Sent final heartbeat");
+                }
+            });
+        }
+        
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+            window.removeEventListener("online", handleOnlineEvent);
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+            stopHeartbeat();
+        };
+    }, [handleVisibilityChange, handleOnlineEvent, handleBeforeUnload, stopHeartbeat, userTeam?.id, socket]);
+
     // Refs to access latest state inside socket handlers without adding them to dependencies
     const userTeamRef = useRef(userTeam);
     const currentPlotRef = useRef(currentPlot);
@@ -216,18 +321,76 @@ export default function Dashboard() {
     useEffect(() => {
         if (!socket || !userTeam?.id) return;
 
+        // If the socket was explicitly disconnected during a previous logout, don't reconnect
+        if (isIntentionalDisconnect) {
+            return;
+        }
+
         // If the socket was explicitly disconnected during a previous logout, reconnect it
         if (!socket.connected) {
             socket.connect();
         }
 
-        // Only join once
-        socket.emit("join_auction", { team_id: userTeam.id });
+        // Register team with server
+        const registerTeam = () => {
+            if (userTeam?.id && !hasRegisteredRef.current) {
+                socket.emit("team-register", { 
+                    team_id: userTeam.id, 
+                    team_name: userTeam.name 
+                });
+                socket.emit("join_auction", { team_id: userTeam.id });
+                hasRegisteredRef.current = true;
+                console.log("[Socket] Team registered:", userTeam.id);
+            }
+        };
+        
+        registerTeam();
+        startHeartbeat();
 
         socket.on("connection_rejected", (data: any) => {
             console.error("Connection rejected:", data.message);
             setConnectionRejected(data.message);
             socket.disconnect(); // Explicitly disconnect the rejected socket
+        });
+
+        socket.on("force-disconnect", (data: any) => {
+            console.log("[ForceDisconnect] Received:", data.message);
+            setIntentionalDisconnect(true);
+            stopHeartbeat();
+            setConnectionRejected(data.message || "Connected from another device");
+            localStorage.clear();
+            router.push("/");
+        });
+
+        socket.on("heartbeat-ack", () => {
+            console.log("[Heartbeat] Acknowledged by server");
+        });
+
+        socket.on("online-teams-updated", (teams: any[]) => {
+            console.log("[Socket] Online teams updated:", teams);
+        });
+
+        // Reconnect handler
+        socket.on("reconnect", () => {
+            console.log("[Socket] Reconnected, re-registering team");
+            hasRegisteredRef.current = false;
+            registerTeam();
+            startHeartbeat();
+        });
+
+        socket.on("disconnect", (reason: string) => {
+            console.log("[Socket] Disconnected:", reason);
+            stopHeartbeat();
+            
+            // If server disconnected us (not intentional), try to reconnect after 2 seconds
+            if (reason === "io server disconnect" && !isIntentionalDisconnect) {
+                setTimeout(() => {
+                    if (!isIntentionalDisconnect && socket) {
+                        console.log("[Socket] Attempting to reconnect after server disconnect");
+                        socket.connect();
+                    }
+                }, 2000);
+            }
         });
 
         const handleStateUpdate = (data: any) => {
@@ -385,7 +548,7 @@ export default function Dashboard() {
             socket.off("round4_phase_update");
             socket.off("rebid_offer_cancelled");
         };
-    }, [socket, userTeam?.id]); // Only depend on ID, not the whole object, to prevent reconnects on budget updates
+    }, [socket, userTeam?.id, isIntentionalDisconnect, startHeartbeat, stopHeartbeat, setIntentionalDisconnect, router]);
 
     /** Get team name from ID. */
     const getTeamName = (id: string) => {
@@ -481,7 +644,26 @@ export default function Dashboard() {
 
                         <button
                             onClick={() => {
-                                if (socket) socket.disconnect();
+                                // Mark as intentional disconnect FIRST to prevent auto-reconnect
+                                setIntentionalDisconnect(true);
+                                stopHeartbeat();
+                                
+                                // Emit logout event to server for immediate removal
+                                if (socket && socket.connected && userTeam?.id) {
+                                    socket.emit("team-logout", { team_id: userTeam.id });
+                                    console.log("[Logout] Emitted team-logout event");
+                                }
+                                
+                                // Remove all event listeners
+                                if (socket) {
+                                    socket.removeAllListeners();
+                                }
+                                
+                                // Disconnect socket
+                                if (socket) {
+                                    socket.disconnect();
+                                }
+                                
                                 localStorage.clear();
                                 router.push("/");
                             }}
