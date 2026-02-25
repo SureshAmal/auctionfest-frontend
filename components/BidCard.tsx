@@ -148,40 +148,6 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
         );
     }
 
-    // Show selling countdown lock state
-    if (auctionStatus === "selling") {
-        return (
-            <NeoCard className="bg-[var(--color-danger)] border-[var(--color-border)] animate-pulse shadow-[8px_8px_0_black]">
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                    <Clock size={48} className="text-white mb-3" />
-                    <h3 className="text-4xl font-black uppercase mb-3 text-white tracking-widest leading-none">GOING...</h3>
-                    <div className="bg-black text-white px-4 py-2 border-2 border-white shadow-[4px_4px_0_white]">
-                        {currentPlot.winner_team_id ? (
-                            (() => {
-                                const winTeam = allTeams?.find(t => t.id === currentPlot.winner_team_id);
-                                const newBalance = winTeam ? (Number(winTeam.budget) - Number(winTeam.spent) - Number(currentPlot.current_bid)) : 0;
-                                return (
-                                    <>
-                                        <p className="text-xs uppercase font-bold text-[var(--color-text)] opacity-30">Highest Bidder</p>
-                                        <p className="text-2xl font-black">{getTeamName(currentPlot.winner_team_id)}</p>
-                                        <p className="text-lg font-mono text-[var(--color-success)]">₹{Number(currentPlot.current_bid).toLocaleString("en-IN")}</p>
-                                        {winTeam && (
-                                            <p className="text-sm font-bold text-[var(--color-surface)] mt-2 border-t border-dashed border-[var(--color-border)] opacity-50 pt-1">
-                                                New Balance: ₹{newBalance.toLocaleString("en-IN")}
-                                            </p>
-                                        )}
-                                    </>
-                                );
-                            })()
-                        ) : (
-                            <p className="text-lg font-black uppercase">NO BIDS RECEIVED</p>
-                        )}
-                    </div>
-                </div>
-            </NeoCard>
-        );
-    }
-
     // Actual bid placed (without adjustment)
     const actualBid = Number(currentPlot.current_bid) || 0;
     // Adjusted total value of the plot (for display as starting/base price)
@@ -190,6 +156,7 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
     const minBid = actualBid > 0
         ? actualBid + 100
         : (adjustedValue || 1000);
+
     /** Convert number to Indian words (Crore, Lakh, Thousand). */
     const numberToIndianWords = (num: number): string => {
         if (!num || num <= 0) return "";
@@ -224,14 +191,44 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
 
     return (
         <NeoCard className={`bg-[var(--color-bg)] flex flex-col ${className}`}>
-            <div className="flex items-center justify-between mb-4 shrink-0">
-                <h3 className="text-lg font-black uppercase flex items-center gap-2">
-                    <Gavel size={20} /> Place Bid
-                </h3>
-                {currentRound === 4 && (
-                    <NeoBadge variant="danger">Final Bidding</NeoBadge>
-                )}
-            </div>
+
+            {auctionStatus === "selling" && (
+                <div className="bg-[var(--color-danger)] text-white p-3 neo-border mb-4 animate-pulse shadow-[4px_4px_0_black]">
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                            <Clock size={24} className="text-white" />
+                            <h3 className="text-xl font-black uppercase tracking-widest leading-none">GOING...</h3>
+                        </div>
+                    </div>
+                    <div className="bg-black text-white px-3 py-1.5 border border-white flex justify-between items-center w-full shadow-[2px_2px_0_white]">
+                        {currentPlot.winner_team_id ? (
+                            <>
+                                <div>
+                                    <p className="text-[10px] uppercase font-bold opacity-70">Highest Bidder</p>
+                                    <p className="text-sm font-black truncate max-w-[150px]">{getTeamName(currentPlot.winner_team_id)}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] uppercase font-bold opacity-70">Amount</p>
+                                    <p className="text-sm font-mono font-bold text-[var(--color-success)]">₹ {Number(currentPlot.current_bid).toLocaleString("en-IN")}</p>
+                                </div>
+                            </>
+                        ) : (
+                            <p className="text-xs font-black uppercase mx-auto">NO BIDS RECEIVED</p>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {auctionStatus !== "selling" && (
+                <div className="flex items-center justify-between mb-4 shrink-0">
+                    <h3 className="text-lg font-black uppercase flex items-center gap-2">
+                        <Gavel size={20} /> Place Bid
+                    </h3>
+                    {currentRound === 4 && (
+                        <NeoBadge variant="danger">Final Bidding</NeoBadge>
+                    )}
+                </div>
+            )}
 
             <div className="space-y-4">
                 {/* Current Price / Highest Bid */}

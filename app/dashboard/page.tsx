@@ -416,8 +416,7 @@ export default function Dashboard() {
 
                     <div className="flex flex-wrap gap-2 sm:gap-4 items-center justify-end">
                         {(() => {
-                            const remainingCash = Number(userTeam.budget) - Number(userTeam.spent || 0) -
-                                (currentPlot?.winner_team_id === userTeam.id && currentPlot?.status === "active" ? Number(currentPlot?.current_bid || 0) : 0);
+                            const remainingCash = Number(userTeam.budget) - Number(userTeam.spent || 0);
                             const portfolioValue = plots
                                 .filter(p => p.winner_team_id === userTeam.id && p.status === 'sold')
                                 .reduce((sum, p) => sum + (Number(p.current_bid || p.total_plot_price || 0) + Number(p.round_adjustment || 0)), 0);
@@ -560,8 +559,7 @@ export default function Dashboard() {
                                 </h3>
                                 <div className="space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
                                     {[...allTeams].map(team => {
-                                        const remaining = Number(team.budget) - Number(team.spent || 0) -
-                                            (currentPlot?.winner_team_id === team.id && currentPlot?.status === "active" ? Number(currentPlot?.current_bid || 0) : 0);
+                                        const remaining = Number(team.budget) - Number(team.spent || 0);
                                         const portfolioValue = plots
                                             .filter(p => p.winner_team_id === team.id && p.status === 'sold')
                                             .reduce((sum, p) => sum + (Number(p.current_bid || p.total_plot_price || 0) + Number(p.round_adjustment || 0)), 0);

@@ -130,8 +130,6 @@ export default function AdminPage() {
         };
 
         fetchData();
-        const interval = setInterval(fetchData, 5000);
-        return () => clearInterval(interval);
     }, []);
 
     // Fetch sell offers during Round 4
@@ -144,8 +142,6 @@ export default function AdminPage() {
             } catch (e) { console.error(e); }
         };
         fetchOffers();
-        const interval = setInterval(fetchOffers, 3000);
-        return () => clearInterval(interval);
     }, [currentRound]);
 
     // Fetch Questions when round changes to a policy round
@@ -202,7 +198,29 @@ export default function AdminPage() {
         socket.on("round_change", handleRoundChange);
         socket.on("plot_adjustment", handlePlotAdjustment);
         socket.on("rebid_phase_update", handleRebidPhaseUpdate);
-        socket.on("new_bid", () => { /* Updated on next poll */ });
+
+        socket.on("plot_update", (data: any) => {
+            setPlots(prev => prev.map(p => p.number === data.number ? { ...p, ...data } : p));
+            if (auctionState?.current_plot_number === data.number) {
+                setCurrentPlot((prev: any) => prev ? { ...prev, ...data } : null);
+            }
+        });
+
+        socket.on("team_update", (data: any) => {
+            setTeams(prev => prev.map(t =>
+                t.id === data.team_id ? { ...t, spent: data.spent, budget: data.budget, plots_won: data.plots_won } : t
+            ));
+        });
+
+        socket.on("new_rebid_offer", (offer: any) => {
+            setSellOffers(prev => [offer, ...prev]);
+        });
+
+        socket.on("rebid_offer_cancelled", (offer: any) => {
+            setSellOffers(prev => prev.filter(o => o.id !== offer.id));
+        });
+
+        socket.on("new_bid", () => { /* Leaderboard not tracking individual bids */ });
         socket.on("connection_count", (data: any) => {
             setConnectedCount(data.count);
             setConnectedTeams(data.teams || []);
@@ -214,6 +232,10 @@ export default function AdminPage() {
             socket.off("round_change");
             socket.off("plot_adjustment");
             socket.off("rebid_phase_update");
+            socket.off("plot_update");
+            socket.off("team_update");
+            socket.off("new_rebid_offer");
+            socket.off("rebid_offer_cancelled");
             socket.off("new_bid");
             socket.off("connection_count");
             socket.off("auction_reset");
