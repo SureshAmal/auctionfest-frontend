@@ -20,9 +20,10 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     const [isConnected, setIsConnected] = useState(false);
 
     useEffect(() => {
-        // In dev, Next.js hot reload can cause multiple connections if not handled carefuly.
-        // We'll create one connection.
-        const socketUrl = `http://${window.location.hostname || "localhost"}:8000`;
+        // Use the configured backend URL, falling back to localhost for dev
+        const socketUrl =
+            process.env.NEXT_PUBLIC_BACKEND_URL ||
+            `http://${window.location.hostname || "localhost"}:8000`;
         const socketInstance = io(socketUrl, {
             transports: ["polling", "websocket"], // Allow polling fallback for poor networks
             autoConnect: true,

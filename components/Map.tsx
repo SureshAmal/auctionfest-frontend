@@ -33,9 +33,11 @@ export default function Map({ plots, currentPlotNumber }: MapProps) {
     useEffect(() => {
         const fetchGeometry = async () => {
             try {
-                // Use window.location.hostname to support network access
-                const hostname = window.location.hostname;
-                const res = await fetch(`http://${hostname}:8000/map/plots`);
+                // Use configured backend URL, falling back to hostname:8000 for local dev
+                const backendUrl =
+                    process.env.NEXT_PUBLIC_BACKEND_URL ||
+                    `http://${window.location.hostname}:8000`;
+                const res = await fetch(`${backendUrl}/map/plots`);
                 if (res.ok) {
                     const data = await res.json();
                     setGeometryData(data);
