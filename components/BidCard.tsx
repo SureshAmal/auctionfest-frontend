@@ -32,6 +32,7 @@ interface BidCardProps {
 export default function BidCard({ currentPlot, userTeam, allTeams = [], currentRound = 1, auctionStatus = "not_started", className = "" }: BidCardProps) {
     const { socket } = useSocket();
     const [bidAmount, setBidAmount] = useState("");
+    const [isBidActive, setIsBidActive] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [successMsg, setSuccessMsg] = useState("");
@@ -44,6 +45,7 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
     useEffect(() => {
         if (currentPlot) {
             setBidAmount("");
+            setIsBidActive(false);
             setError("");
             setSuccessMsg("");
         }
@@ -65,7 +67,14 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
             return;
         }
 
-        const amount = parseInt(bidAmount);
+        // Require user to press + or - first to activate bid
+        if (!isBidActive) {
+            setError("Press + to place a bid");
+            return;
+        }
+
+        // Use minBid if no explicit bid amount is set
+        const amount = isBidActive && bidAmount ? parseInt(bidAmount) : minBid;
         if (isNaN(amount) || amount < minBid) {
             setError(`Minimum bid amount is ₹${minBid.toLocaleString("en-IN")}`);
             return;
@@ -149,8 +158,8 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
     const adjustedValue = (Number(currentPlot.current_bid) || Number(currentPlot.total_plot_price) || 0) + (Number(currentPlot.round_adjustment) || 0);
     // Min bid is based on actual bid, not adjusted value
     const minBid = actualBid > 0
-        ? actualBid + 100000
-        : (adjustedValue || 100000);
+        ? actualBid + 500000
+        : (adjustedValue || 500000);
 
     /** Convert number to Indian words (Crore, Lakh, Thousand). */
     const numberToIndianWords = (num: number): string => {
@@ -254,42 +263,38 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
                     </div>
                 )}
 
-                {/* Bid Input with +/- */}
+{/* Bid Input with +/- */}
                 <div className="relative flex items-center gap-4">
                     <NeoButton
                         variant="secondary"
                         className="w-12 h-12 flex items-center justify-center font-black text-2xl shrink-0"
                         onClick={() => {
-                            const step = currentRound === 1 ? 100000 : 100000;
+                            const step = 500000;
                             const currentVal = parseInt(bidAmount) || minBid;
                             const newVal = Math.max(minBid, currentVal - step);
                             setBidAmount(newVal.toString());
+                            setIsBidActive(true);
                         }}
                     >
                         -
                     </NeoButton>
 
-                    <div className="relative flex-1">
-                        <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text)] opacity-40" size={20} />
-                        <input
-                            type="text"
-                            inputMode="numeric"
-                            value={displayBidAmount}
-                            onChange={handleBidInputChange}
-                            className="w-full neo-input pl-12 text-2xl font-black text-center"
-                            placeholder={`${minBid.toLocaleString("en-IN")}`}
-                            min={minBid}
-                        />
+                    <div className={`flex-1 flex items-center justify-center py-3 neo-border ${isBidActive ? "bg-[var(--color-surface)]" : "bg-[var(--color-surface)] opacity-40"}`}>
+                        <IndianRupee className={`mr-1 ${isBidActive ? "text-[var(--color-text)] opacity-40" : "text-[var(--color-text)] opacity-20"}`} size={24} />
+                        <span className={`text-2xl font-black ${isBidActive ? "" : "opacity-50"}`}>
+                            {displayBidAmount || minBid.toLocaleString("en-IN")}
+                        </span>
                     </div>
 
                     <NeoButton
                         variant="primary"
                         className="w-12 h-12 flex items-center justify-center font-black text-2xl shrink-0"
                         onClick={() => {
-                            const step = currentRound === 1 ? 100000 : 100000;
+                            const step = 500000;
                             const currentVal = parseInt(bidAmount) || (minBid - step);
                             const newVal = currentVal + step;
                             setBidAmount(newVal.toString());
+                            setIsBidActive(true);
                         }}
                     >
                         +
@@ -333,8 +338,8 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
                         variant="primary"
                         size="lg"
                         onClick={handlePlaceBid}
-                        disabled={isSubmitting || currentPlot.winner_team_id === userTeam.id}
-                        className={`w-full text-xl ${isSubmitting || currentPlot.winner_team_id === userTeam.id ? "opacity-50 cursor-not-allowed" : ""}`}
+                        disabled={isSubmitting || currentPlot.winner_team_id === userTeam.id || !isBidActive}
+                        className={`w-full text-xl ${isSubmitting || currentPlot.winner_team_id === userTeam.id || !isBidActive ? "opacity-50 cursor-not-allowed" : ""}`}
                     >
                         {isSubmitting ? <Loader2 className="animate-spin" /> : "PLACE BID"}
                     </NeoButton>

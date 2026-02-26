@@ -476,50 +476,53 @@ export default function AdminPage() {
     return (
         <NeoLayout containerized={false}>
             <div className="min-h-screen lg:h-screen flex flex-col lg:overflow-hidden px-3 py-2">
-                <header className="flex flex-col md:flex-row justify-between items-center mb-2 gap-2 border-b-4 border-[var(--color-border)] pb-2">
-                    <div className="flex items-center gap-4">
-                        <ShieldAlert size={48} className="text-[var(--color-primary)]" strokeWidth={3} />
-                        <h1 className="text-4xl font-black uppercase tracking-normal">
-                            ADMIN PANEL
+                <header className="flex flex-col md:flex-row justify-between items-center mb-3 md:mb-2 gap-2 md:gap-2 border-b-4 border-[var(--color-border)] pb-2 md:pb-2">
+                    <div className="flex items-center gap-3 md:gap-4">
+                        <ShieldAlert size={48} className="text-[var(--color-primary)] hidden md:block" strokeWidth={3} />
+                        <ShieldAlert size={36} className="text-[var(--color-primary)] md:hidden" strokeWidth={3} />
+                        <h1 className="text-2xl md:text-4xl font-black uppercase tracking-normal">
+                            ADMIN
                         </h1>
                     </div>
 
-                    <div className="flex flex-wrap gap-4 items-center h-12">
-                        <div className="flex items-center gap-2 neo-border px-4 h-full bg-[var(--color-bg)]">
-                            <Users size={20} className="text-[var(--color-secondary)]" />
-                            <span className="font-black text-xl">{connectedCount}</span>
-                            <span className="font-bold uppercase text-sm">Online</span>
+                    <div className="flex flex-wrap gap-2 md:gap-4 items-center min-h-[3rem] md:min-h-0">
+                        <div className="flex items-center gap-1 md:gap-2 neo-border px-2 md:px-4 py-1 md:h-full bg-[var(--color-bg)]">
+                            <Users size={20} className="text-[var(--color-secondary)] hidden md:block" />
+                            <Users size={16} className="text-[var(--color-secondary)] md:hidden" />
+                            <span className="font-black text-lg md:text-xl">{connectedCount}</span>
+                            <span className="hidden md:inline font-bold uppercase text-sm">Online</span>
                         </div>
 
-                        <NeoBadge variant={isRunning ? "success" : isPaused ? "neutral" : isCompleted ? "danger" : "neutral"} className="h-full flex items-center justify-center px-6">
+                        <NeoBadge variant={isRunning ? "success" : isPaused ? "neutral" : isCompleted ? "danger" : "neutral"} className="py-1 md:py-0 px-2 md:px-6">
                             {status.replace("_", " ")}
                         </NeoBadge>
 
-                        <div className="neo-border px-4 h-full flex flex-col justify-center items-center bg-[var(--color-surface)]">
+                        <div className="neo-border px-2 md:px-4 py-1 md:py-0 flex flex-col justify-center items-center bg-[var(--color-surface)]">
                             <div className="flex flex-col items-center justify-center leading-none">
-                                <span className="font-bold uppercase text-[10px] opacity-70">Plot</span>
-                                <span className="font-black text-xl">#{auctionState?.current_plot_number || "-"}</span>
+                                <span className="font-bold uppercase text-[8px] md:text-[10px] opacity-70">Plot</span>
+                                <span className="font-black text-lg md:text-xl">#{auctionState?.current_plot_number || "-"}</span>
                             </div>
                         </div>
 
-                        <div className="neo-border px-4 h-full flex flex-col justify-center items-center bg-[var(--color-surface)]">
+                        <div className="neo-border px-2 md:px-4 py-1 md:py-0 flex flex-col justify-center items-center bg-[var(--color-surface)]">
                             <div className="flex flex-col items-center justify-center leading-none">
-                                <span className="font-bold uppercase text-[10px] opacity-70">Round</span>
-                                <span className="font-black text-xl">{currentRound}</span>
+                                <span className="font-bold uppercase text-[8px] md:text-[10px] opacity-70">Round</span>
+                                <span className="font-black text-lg md:text-xl">{currentRound}</span>
                             </div>
                         </div>
 
-                        <ThemeChanger className="h-full" />
+                        <ThemeChanger className="h-auto md:h-full" />
 
                         <NeoButton
                             variant="danger"
-                            className="text-sm font-black h-full px-6 flex items-center justify-center"
+                            className="text-xs md:text-sm font-black py-1 md:py-0 px-2 md:px-6 flex items-center justify-center"
                             onClick={() => {
                                 localStorage.removeItem("admin_auth");
                                 setIsAdminAuth(false);
                             }}
                         >
-                            🔒 Lock
+                            <span className="md:hidden">🔒</span>
+                            <span className="hidden md:inline">🔒 Lock</span>
                         </NeoButton>
                     </div>
                 </header>

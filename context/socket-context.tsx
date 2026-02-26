@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
 interface SocketContextType {
@@ -15,39 +15,86 @@ const SocketContext = createContext<SocketContextType>({
 
 export const useSocket = () => useContext(SocketContext);
 
+/**
+ * Singleton socket instance — lives outside React lifecycle to survive
+ * React strict-mode double-mount and page refreshes.
+ */
+let globalSocket: Socket | null = null;
+
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     const [socket, setSocket] = useState<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
+    const initialized = useRef(false);
 
     useEffect(() => {
-        // Use the configured backend URL, falling back to localhost for dev
+        // Prevent React strict-mode double initialization
+        if (initialized.current && globalSocket) {
+            setSocket(globalSocket);
+            setIsConnected(globalSocket.connected);
+            return;
+        }
+        initialized.current = true;
+
         const socketUrl =
             process.env.NEXT_PUBLIC_BACKEND_URL ||
             `http://${window.location.hostname || "localhost"}:8000`;
-        const socketInstance = io(socketUrl, {
-            transports: ["polling", "websocket"], // Allow polling fallback for poor networks
-            autoConnect: true,
-            reconnection: true,
-            reconnectionAttempts: Infinity,
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
-            timeout: 20000,
-        });
 
-        socketInstance.on("connect", () => {
+        // Reuse existing socket if available (e.g. HMR), otherwise create new
+        if (!globalSocket || globalSocket.disconnected) {
+            globalSocket = io(socketUrl, {
+                transports: ["polling", "websocket"],
+                upgrade: true,
+                rememberUpgrade: true,
+                autoConnect: true,
+                reconnection: true,
+                reconnectionAttempts: Infinity,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                timeout: 30000,
+            });
+        }
+
+        const socketInstance = globalSocket;
+
+        const onConnect = () => {
             console.log("Socket connected:", socketInstance.id);
             setIsConnected(true);
-        });
+        };
 
-        socketInstance.on("disconnect", () => {
-            console.log("Socket disconnected");
+        const onDisconnect = (reason: string) => {
+            console.log("Socket disconnected, reason:", reason);
             setIsConnected(false);
-        });
+        };
+
+        const onConnectError = (err: Error) => {
+            console.warn("Socket connect_error:", err.message);
+            setIsConnected(false);
+        };
+
+        const onReconnect = (attempt: number) => {
+            console.log("Socket reconnected after", attempt, "attempts");
+            setIsConnected(true);
+        };
+
+        socketInstance.on("connect", onConnect);
+        socketInstance.on("disconnect", onDisconnect);
+        socketInstance.on("connect_error", onConnectError);
+        socketInstance.io.on("reconnect", onReconnect);
+
+        // If already connected (HMR/strict-mode), sync state
+        if (socketInstance.connected) {
+            setIsConnected(true);
+        }
 
         setSocket(socketInstance);
 
         return () => {
-            socketInstance.disconnect();
+            // Only remove listeners, do NOT disconnect the socket.
+            // The socket persists across React strict-mode remounts.
+            socketInstance.off("connect", onConnect);
+            socketInstance.off("disconnect", onDisconnect);
+            socketInstance.off("connect_error", onConnectError);
+            socketInstance.io.off("reconnect", onReconnect);
         };
     }, []);
 

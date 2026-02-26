@@ -300,14 +300,14 @@ export default function Dashboard() {
         const handlePlotAdjustment = (data: any) => {
             console.log("Plot Adjustment:", data);
             if (data.plot) {
-                // Compute the delta for this specific policy application
+                // Update the plot data
                 setPlots(prev => {
                     const oldPlot = prev.find(p => p.number === data.plot_number);
                     const oldAdj = Number(oldPlot?.round_adjustment || 0);
                     const newAdj = Number(data.plot.round_adjustment || 0);
                     const delta = newAdj - oldAdj;
 
-                    // Track this delta in recentAdjustments
+                    // Track this delta in recentAdjustments (outside of setPlots updater)
                     if (delta !== 0) {
                         setRecentAdjustments(ra => ({
                             ...ra,
@@ -362,23 +362,7 @@ export default function Dashboard() {
         socket.on("auction_state_update", handleStateUpdate);
         socket.on("new_bid", handleNewBid);
         socket.on("round_change", handleRoundChange);
-        socket.on("plot_adjustment", (data: any) => {
-            // Update plot with the new round_adjustment, parsing float to handle scientific notation
-            setPlots((prev: any[]) => prev.map(p => {
-                if (p.number === data.plot_number) {
-                    return { ...p, round_adjustment: parseFloat(data.plot.round_adjustment) || 0 };
-                }
-                return p;
-            }));
-
-            // Also update currentPlot if it's the one that got adjusted
-            setCurrentPlot((prev: any) => {
-                if (prev?.number === data.plot_number) {
-                    return { ...prev, round_adjustment: parseFloat(data.plot.round_adjustment) || 0 };
-                }
-                return prev;
-            });
-        });
+        socket.on("plot_adjustment", handlePlotAdjustment);
         socket.on("auction_reset", handleReset);
         socket.on("team_update", handleTeamUpdate);
         socket.on("active_question", handleActiveQuestion);
@@ -435,7 +419,7 @@ export default function Dashboard() {
             socket.off("rebid_offer_cancelled");
             socket.off("banned");
         };
-    }, [socket, userTeam?.id]); // Only depend on ID, not the whole object, to prevent reconnects on budget updates
+    }, [socket, userTeam?.id, isConnected]);
 
     /** Get team name from ID. */
     const getTeamName = (id: string) => {
@@ -699,8 +683,8 @@ export default function Dashboard() {
                                     )}
                                     {plots.filter(p => p.winner_team_id === userTeam.id && p.status?.toLowerCase() === 'sold').map(plot => {
                                         const currentValue = (parseFloat(plot.current_bid || plot.total_plot_price || 0) + parseFloat(plot.round_adjustment || 0));
-                                        const basePrice = parseFloat(plot.current_bid || plot.total_plot_price || 0);
                                         const maxAllowed = currentValue * 1.10;
+                                        const minAllowed = currentValue;
                                         const activeOffer = rebidOffers.find(o => o.plot_number === plot.number && o.status === "active");
 
                                         return (
@@ -730,7 +714,7 @@ export default function Dashboard() {
                                                                         })
                                                                     });
                                                                     if (!res.ok) alert((await res.json()).detail);
-                                                                    else setMarkupInput(prev => ({ ...prev, [plot.number]: Math.floor(basePrice).toString() }));
+                                                                    else setMarkupInput(prev => ({ ...prev, [plot.number]: Math.floor(minAllowed).toString() }));
                                                                 } catch (e) { console.error(e); }
                                                             }}
                                                         >
@@ -743,24 +727,32 @@ export default function Dashboard() {
                                                             <input
                                                                 type="text"
                                                                 inputMode="numeric"
-                                                                placeholder={`₹${Math.floor(basePrice).toLocaleString("en-IN")}`}
+                                                                placeholder={`₹${Math.floor(minAllowed).toLocaleString("en-IN")}`}
                                                                 className="neo-input flex-1 text-sm py-1 px-2 min-w-0 bg-[var(--color-bg)]"
-                                                                value={markupInput[plot.number] ? parseInt(markupInput[plot.number])?.toLocaleString("en-IN") : Math.floor(basePrice).toLocaleString("en-IN")}
+                                                                value={markupInput[plot.number] || ""}
                                                                 onChange={(e) => {
                                                                     const raw = e.target.value.replace(/,/g, "").replace(/[^0-9]/g, "");
                                                                     setMarkupInput(prev => ({ ...prev, [plot.number]: raw }));
+                                                                }}
+                                                                onBlur={(e) => {
+                                                                    const raw = e.target.value.replace(/,/g, "");
+                                                                    const num = parseInt(raw);
+                                                                    if (!isNaN(num) && num > 0) {
+                                                                        setMarkupInput(prev => ({ ...prev, [plot.number]: num.toString() }));
+                                                                    } else {
+                                                                        setMarkupInput(prev => ({ ...prev, [plot.number]: "" }));
+                                                                    }
                                                                 }}
                                                             />
                                                             <NeoButton
                                                                 variant="primary"
                                                                 className="text-xs py-1 px-3"
                                                                 onClick={async () => {
-                                                                    // Use typed value or fall back to base price
                                                                     const rawVal = markupInput[plot.number];
-                                                                    const price = rawVal && rawVal.trim() !== "" ? parseFloat(rawVal) : Math.floor(basePrice);
+                                                                    const price = rawVal && rawVal.trim() !== "" && !isNaN(parseFloat(rawVal)) ? parseFloat(rawVal) : null;
 
-                                                                    if (!price || isNaN(price) || price > Math.floor(maxAllowed) || price < Math.floor(basePrice)) {
-                                                                        return alert(`Invalid price! Min: ₹${Math.floor(basePrice).toLocaleString("en-IN")} — Max: ₹${Math.floor(maxAllowed).toLocaleString("en-IN")}`);
+                                                                    if (!price || price > Math.floor(maxAllowed) || price < Math.floor(minAllowed)) {
+                                                                        return alert(`Invalid price! Min: ₹${Math.floor(minAllowed).toLocaleString("en-IN")} — Max: ₹${Math.floor(maxAllowed).toLocaleString("en-IN")}`);
                                                                     }
 
                                                                     try {
@@ -782,7 +774,7 @@ export default function Dashboard() {
                                                             </NeoButton>
                                                         </div>
                                                         <p className="text-[10px] font-bold opacity-50 px-1">
-                                                            Min: ₹{Math.floor(basePrice).toLocaleString("en-IN")} — Max: ₹{Math.floor(maxAllowed).toLocaleString("en-IN")}
+                                                            Min: ₹{Math.floor(minAllowed).toLocaleString("en-IN")} — Max: ₹{Math.floor(maxAllowed).toLocaleString("en-IN")}
                                                         </p>
                                                     </div>
                                                 )}

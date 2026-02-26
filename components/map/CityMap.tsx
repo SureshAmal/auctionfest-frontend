@@ -143,14 +143,14 @@ export default function CityMap({
   // Round 1: highlight sold plots in green so users can see who bought what
   const soldPlotsStyles = isRound1
     ? plots
-        .filter((p) => p.status === "sold")
-        .map(
-          (p) => `
+      .filter((p) => p.status === "sold")
+      .map(
+        (p) => `
                 g[id="${p.number}"] path { fill: #4ade80 !important; opacity: 0.9 !important; stroke: #16a34a; stroke-width: 6px; }
                 g[id="${p.number}"]:hover path { fill: #22c55e !important; stroke: black; stroke-width: 8px; }
             `,
-        )
-        .join("\n")
+      )
+      .join("\n")
     : "";
 
   // Dynamic styles for recently adjusted plots (current policy only — orange/red with pulse)
@@ -249,11 +249,11 @@ export default function CityMap({
   const typePlotsStyles = isRound1
     ? ""
     : plots
-        .filter((p) => p.plot_type || p.type)
-        .map((p) => {
-          const typeStr = (p.plot_type || p.type || "").trim().toUpperCase();
-          const colors = TYPE_COLORS[typeStr] || defaultTypeColor;
-          return `
+      .filter((p) => p.plot_type || p.type)
+      .map((p) => {
+        const typeStr = (p.plot_type || p.type || "").trim().toUpperCase();
+        const colors = TYPE_COLORS[typeStr] || defaultTypeColor;
+        return `
                 g[id="${p.number}"] path {
                     fill: ${colors.fill} !important;
                     opacity: 0.9 !important;
@@ -267,8 +267,8 @@ export default function CityMap({
                     stroke-width: 8px;
                 }
             `;
-        })
-        .join("\n");
+      })
+      .join("\n");
 
   // Decide which styles to apply based on round and mode
   const mapGlobalStyles = isRound1
@@ -392,8 +392,8 @@ export default function CityMap({
                       ₹{" "}
                       {Number(
                         hoveredPlot.current_bid ||
-                          hoveredPlot.total_plot_price ||
-                          0,
+                        hoveredPlot.total_plot_price ||
+                        0,
                       ).toLocaleString("en-IN")}
                     </span>
                   </div>
@@ -448,8 +448,8 @@ export default function CityMap({
                       ₹{" "}
                       {Number(
                         hoveredPlot.current_bid ||
-                          hoveredPlot.total_plot_price ||
-                          0,
+                        hoveredPlot.total_plot_price ||
+                        0,
                       ).toLocaleString("en-IN")}
                     </span>
                   </div>
@@ -478,8 +478,8 @@ export default function CityMap({
                           {(
                             Number(
                               hoveredPlot.current_bid ||
-                                hoveredPlot.total_plot_price ||
-                                0,
+                              hoveredPlot.total_plot_price ||
+                              0,
                             ) + Number(hoveredPlot.round_adjustment || 0)
                           ).toLocaleString("en-IN")}
                         </span>
