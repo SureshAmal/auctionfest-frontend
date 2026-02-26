@@ -9,6 +9,7 @@ import NeoButton from "../components/neo/NeoButton";
 import NeoInput from "../components/neo/NeoInput";
 import { Loader2, Users, ArrowRight, ShieldAlert } from "lucide-react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 
 export default function Home() {
   const router = useRouter();

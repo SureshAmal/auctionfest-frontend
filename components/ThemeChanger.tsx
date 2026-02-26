@@ -652,17 +652,39 @@ function CustomSelect({
   placeholder?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (ref.current && !ref.current.contains(event.target as Node)) {
         setIsOpen(false);
+        setHighlightedIndex(-1);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setIsOpen(true);
+      setHighlightedIndex((prev) => (prev < options.length - 1 ? prev + 1 : 0));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setIsOpen(true);
+      setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : options.length - 1));
+    } else if (e.key === "Enter" && isOpen && highlightedIndex >= 0) {
+      e.preventDefault();
+      onChange(options[highlightedIndex].value);
+      setIsOpen(false);
+      setHighlightedIndex(-1);
+    } else if (e.key === "Escape") {
+      setIsOpen(false);
+      setHighlightedIndex(-1);
+    }
+  };
 
   const selectedOption = options.find((o) => o.value === value);
 
@@ -671,6 +693,7 @@ function CustomSelect({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
+        onKeyDown={handleKeyDown}
         className="neo-input w-full text-left flex items-center justify-between gap-2"
       >
         <span className="flex items-center gap-2">
@@ -692,18 +715,22 @@ function CustomSelect({
 
       {isOpen && (
         <div className="absolute z-50 w-full mt-2 max-h-[300px] overflow-y-auto bg-[var(--color-surface)] border-[var(--neo-border-width)] border-[var(--color-border)] shadow-lg">
-          {options.map((option) => (
+          {options.map((option, index) => (
             <button
               key={option.value}
               type="button"
               onClick={() => {
                 onChange(option.value);
                 setIsOpen(false);
+                setHighlightedIndex(-1);
               }}
-              className={`w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-[var(--color-primary)] hover:text-white transition-colors ${
+              onMouseEnter={() => setHighlightedIndex(index)}
+              className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${
                 value === option.value
                   ? "bg-[var(--color-primary)] text-white"
-                  : "text-[var(--color-text)]"
+                  : index === highlightedIndex
+                    ? "bg-[var(--color-primary)]/30 text-[var(--color-text)]"
+                    : "text-[var(--color-text)] hover:bg-[var(--color-primary)]/20"
               }`}
             >
               {option.color && (
@@ -728,12 +755,8 @@ export function ThemeChanger({ className }: { className?: string }) {
   const [localConfig, setLocalConfig] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState<string>("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
 
-  const filteredPresets =
-    selectedCategory === "All"
-      ? PRESETS
-      : PRESETS.filter((p) => p.category === selectedCategory);
+  const filteredPresets = PRESETS;
 
   useEffect(() => {
     if (!isOpen) {
@@ -805,14 +828,11 @@ export function ThemeChanger({ className }: { className?: string }) {
     return theme.config["--color-primary"] || "#6366f1";
   };
 
-  const selectOptions = [
-    { value: "", label: "-- Choose a Theme --" },
-    ...filteredPresets.map((p) => ({
-      value: p.name,
-      label: p.name,
-      color: getThemeColor(p),
-    })),
-  ];
+  const selectOptions = PRESETS.map((p) => ({
+    value: p.name,
+    label: p.name,
+    color: getThemeColor(p),
+  }));
 
   return (
     <>
@@ -850,37 +870,6 @@ export function ThemeChanger({ className }: { className?: string }) {
 
           <div className="flex-1 overflow-y-auto p-4 space-y-6">
             <div className="space-y-2">
-              <h3 className="font-bold uppercase text-xs opacity-70">
-                Category
-              </h3>
-              <CustomSelect
-                value={selectedCategory}
-                onChange={setSelectedCategory}
-                options={CATEGORIES.map((cat) => ({
-                  value: cat,
-                  label: cat,
-                  color:
-                    cat === "All"
-                      ? undefined
-                      : cat === "Real Estate"
-                        ? "#d4af37"
-                        : cat === "Modern"
-                          ? "#6366f1"
-                          : cat === "Neo Brutalism"
-                            ? "#FF4D00"
-                            : cat === "Glassmorphism"
-                              ? "#818cf8"
-                              : cat === "Retro Gaming"
-                                ? "#ff6e96"
-                                : cat === "Cyberpunk"
-                                  ? "#00ff41"
-                                  : "#22c55e",
-                }))}
-                placeholder="All Categories"
-              />
-            </div>
-
-            <div className="space-y-2">
               <h3 className="font-bold uppercase text-xs opacity-70">Theme</h3>
               <CustomSelect
                 value={selectedTheme}
@@ -893,37 +882,6 @@ export function ThemeChanger({ className }: { className?: string }) {
                 options={selectOptions}
                 placeholder="-- Choose a Theme --"
               />
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {filteredPresets.slice(0, 9).map((preset) => (
-                <button
-                  key={preset.name}
-                  onClick={() =>
-                    applyPreset(preset.config, preset.dataTheme, preset.name)
-                  }
-                  className={`p-3 rounded-lg border-2 transition-all text-left ${
-                    selectedTheme === preset.name
-                      ? "border-[var(--color-primary)] ring-2 ring-[var(--color-primary)] ring-offset-2"
-                      : "border-[var(--color-border)] hover:border-[var(--color-primary)]"
-                  }`}
-                  style={{ backgroundColor: preset.config["--color-bg"] }}
-                >
-                  <div
-                    className="w-full h-8 rounded mb-2"
-                    style={{
-                      backgroundColor: preset.config["--color-surface"],
-                      border: `2px solid ${preset.config["--color-border"]}`,
-                    }}
-                  />
-                  <div
-                    className="text-xs font-bold truncate"
-                    style={{ color: preset.config["--color-text"] }}
-                  >
-                    {preset.name}
-                  </div>
-                </button>
-              ))}
             </div>
 
             <hr className="border-[var(--color-border)] border-dashed border-t-2" />
