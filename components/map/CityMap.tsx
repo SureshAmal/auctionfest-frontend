@@ -16,6 +16,8 @@ interface CityMapProps {
   currentRound?: number;
   /** Callback when a plot is clicked. */
   onPlotClick?: (plotNumber: string) => void;
+  /** Rebid offers to identify plots listed for sale in round 4 */
+  rebidOffers?: any[];
 }
 
 /**
@@ -33,6 +35,7 @@ export default function CityMap({
   recentAdjustments = {},
   currentRound = 1,
   onPlotClick,
+  rebidOffers = [],
 }: CityMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [centers, setCenters] = useState<
@@ -138,7 +141,9 @@ export default function CityMap({
 
   // Check which plots have recent (current policy) adjustments
   const recentPlotNumbers = new Set(Object.keys(recentAdjustments).map(Number));
-  const isRound1 = currentRound <= 1;
+  const isRound1 = currentRound === 1;
+  const isRound4 = currentRound === 4;
+  const isPolicyRound = [2, 3, 5, 6].includes(currentRound);
 
   // Round 1: highlight sold plots in green so users can see who bought what
   const soldPlotsStyles = isRound1
@@ -151,6 +156,43 @@ export default function CityMap({
             `,
       )
       .join("\n")
+    : "";
+
+  // Round 4: Sold, Unsold, For Sale (rebid), and Current Plot highlighting
+  const round4Styles = isRound4
+    ? plots
+        .map((p) => {
+          const plotNumber = p.number;
+          const isForSale = rebidOffers?.some((o) => o.plot_number === plotNumber && o.status === "active");
+          const isSold = p.status === "sold";
+          const isUnsold = p.status === "unsold";
+          const isCurrentPlot = currentPlotNumber && Number(currentPlotNumber) === plotNumber;
+          
+          // Priority: Current Plot > For Sale > Sold > Unsold
+          if (isCurrentPlot) {
+            return `
+                g[id="${plotNumber}"] path { fill: var(--color-primary) !important; opacity: 1 !important; stroke: var(--color-text); stroke-width: 8px; animation: plotPulse 1s ease-in-out infinite; }
+                g[id="${plotNumber}"]:hover path { fill: var(--color-primary) !important; stroke: black; stroke-width: 10px; }
+            `;
+          } else if (isForSale) {
+            return `
+                g[id="${plotNumber}"] path { fill: #facc15 !important; opacity: 1 !important; stroke: #ca8a04; stroke-width: 6px; animation: plotPulse 1.5s ease-in-out infinite; }
+                g[id="${plotNumber}"]:hover path { fill: #fde047 !important; stroke: black; stroke-width: 8px; }
+            `;
+          } else if (isSold) {
+            return `
+                g[id="${plotNumber}"] path { fill: #4ade80 !important; opacity: 0.9 !important; stroke: #16a34a; stroke-width: 6px; }
+                g[id="${plotNumber}"]:hover path { fill: #22c55e !important; stroke: black; stroke-width: 8px; }
+            `;
+          } else if (isUnsold) {
+            return `
+                g[id="${plotNumber}"] path { fill: #94a3b8 !important; opacity: 0.7 !important; stroke: #64748b; stroke-width: 4px; }
+                g[id="${plotNumber}"]:hover path { fill: #cbd5e1 !important; stroke: black; stroke-width: 6px; }
+            `;
+          }
+          return "";
+        })
+        .join("\n")
     : "";
 
   // Dynamic styles for recently adjusted plots (current policy only — orange/red with pulse)
@@ -273,9 +315,11 @@ export default function CityMap({
   // Decide which styles to apply based on round and mode
   const mapGlobalStyles = isRound1
     ? ""
+    : isRound4
+    ? round4Styles
     : highlightMode === "changes"
-      ? adjustedPlotsStyles
-      : typePlotsStyles;
+    ? adjustedPlotsStyles
+    : typePlotsStyles;
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-[var(--color-bg)]">
@@ -508,25 +552,18 @@ export default function CityMap({
           </div>
         )}
 
-        {/* Round 2+ only: Toggle and Legend overlays */}
-        {!isRound1 && (
+        {/* Policy Rounds (2, 3, 5, 6) only: Toggle and Legend overlays */}
+        {isPolicyRound && (
           <>
             {/* Top Right Toggle */}
             <div
-              className="absolute top-2 right-2 sm:top-4 sm:right-4 pointer-events-auto backdrop-blur-sm p-2 sm:p-3 flex items-center gap-2 sm:gap-3 z-50"
-              style={{
-                backgroundColor: "var(--color-surface)",
-                border: "3px solid var(--color-text)",
-                boxShadow: "3px 3px 0 var(--color-text)",
-              }}
+              className="absolute top-2 right-2 sm:top-4 sm:right-4 pointer-events-auto flex items-center gap-1 sm:gap-2 z-50"
             >
               <span
-                className="font-black text-xs sm:text-sm uppercase"
+                className="font-black text-[9px] sm:text-[10px] uppercase px-1 border-2 border-[var(--color-border)]"
                 style={{
-                  color:
-                    highlightMode === "changes"
-                      ? "var(--color-text)"
-                      : "var(--color-text-muted, #999)",
+                  backgroundColor: highlightMode === "changes" ? "var(--color-primary)" : "transparent",
+                  color: highlightMode === "changes" ? "var(--color-bg)" : "var(--color-text)",
                 }}
               >
                 Changes
@@ -537,35 +574,25 @@ export default function CityMap({
                     highlightMode === "changes" ? "types" : "changes",
                   )
                 }
-                className="relative w-10 h-5 sm:w-14 sm:h-7 box-content flex transition-colors"
+                className="relative w-10 h-5 sm:w-12 sm:h-6 transition-colors border-2 border-[var(--color-border)]"
                 style={{
-                  backgroundColor:
-                    highlightMode === "changes" ? "#fb923c" : "#60a5fa",
-                  border: "3px solid var(--color-text)",
+                  backgroundColor: "var(--color-surface)",
                 }}
               >
                 <div
-                  className="absolute top-0 bottom-0 w-5 sm:w-7 transition-transform duration-300 ease-in-out"
+                  className="absolute top-0 bottom-0 w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-200 ease-out"
                   style={{
-                    backgroundColor: "var(--color-surface)",
-                    transform:
-                      highlightMode === "changes"
-                        ? "translateX(0)"
-                        : "translateX(20px) sm:translateX(28px)",
-                    borderRightWidth: highlightMode === "changes" ? "3px" : "0",
-                    borderLeftWidth: highlightMode === "types" ? "3px" : "0",
-                    borderColor: "var(--color-text)",
-                    boxShadow: "2px 0 0 rgba(0,0,0,0.3)",
+                    backgroundColor: highlightMode === "changes" ? "#fb923c" : "#60a5fa",
+                    transform: highlightMode === "changes" ? "translateX(0)" : "translateX(100%)",
+                    boxShadow: "1px 0 0 rgba(0,0,0,0.3)",
                   }}
                 />
               </button>
               <span
-                className="font-black text-xs sm:text-sm uppercase"
+                className="font-black text-[9px] sm:text-[10px] uppercase px-1 border-2 border-[var(--color-border)]"
                 style={{
-                  color:
-                    highlightMode === "types"
-                      ? "var(--color-text)"
-                      : "var(--color-text-muted, #999)",
+                  backgroundColor: highlightMode === "types" ? "var(--color-primary)" : "transparent",
+                  color: highlightMode === "types" ? "var(--color-bg)" : "var(--color-text)",
                 }}
               >
                 Types
@@ -639,6 +666,45 @@ export default function CityMap({
               )}
             </div>
           </>
+        )}
+
+        {/* Round 4 Legend */}
+        {isRound4 && (
+          <div
+            className="absolute bottom-2 left-2 right-2 pointer-events-auto backdrop-blur-sm px-3 py-1.5 z-50"
+            style={{
+              backgroundColor: "var(--color-surface)",
+              border: "3px solid var(--color-text)",
+              boxShadow: "3px 3px 0 var(--color-text)",
+            }}
+          >
+            <div className="flex items-center justify-center gap-3 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-[var(--color-primary)] border-2 border-[var(--color-text)] animate-pulse shrink-0" />
+                <span className="text-[10px] font-bold uppercase whitespace-nowrap" style={{ color: "var(--color-text)" }}>
+                  Current
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-yellow-400 border-2 border-yellow-600 animate-pulse shrink-0" />
+                <span className="text-[10px] font-bold uppercase whitespace-nowrap" style={{ color: "var(--color-text)" }}>
+                  For Sale
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-green-400 border-2 border-green-600 shrink-0" />
+                <span className="text-[10px] font-bold uppercase whitespace-nowrap" style={{ color: "var(--color-text)" }}>
+                  Sold
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-gray-400 border-2 border-gray-600 shrink-0" />
+                <span className="text-[10px] font-bold uppercase whitespace-nowrap" style={{ color: "var(--color-text)" }}>
+                  Unsold
+                </span>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

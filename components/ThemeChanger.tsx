@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useTheme } from "../context/ThemeProvider";
 import { Settings2, X, Palette, ChevronDown, Check } from "lucide-react";
 import NeoButton from "./neo/NeoButton";
+import { HexColorPicker } from "react-colorful";
+import Select from "react-select";
 
 const THEME_VARIABLES = [
   {
@@ -31,7 +33,27 @@ const THEME_VARIABLES = [
     type: "color",
     default: "#FF0000",
   },
-  { key: "--color-plots", label: "plots", type: "color", default: "#ff6347" },
+  { key: "--color-plots", label: "Plots", type: "color", default: "#ff6347" },
+  {
+    key: "--font-family",
+    label: "Font Family",
+    type: "font",
+    options: [
+      { value: "var(--font-inter)", label: "Default (Inter)" },
+      { value: "var(--font-space)", label: "Space Grotesk" },
+      { value: "var(--font-orbitron)", label: "Orbitron (Sci-Fi)" },
+      { value: "var(--font-rajdhani)", label: "Rajdhani (Tech)" },
+      { value: "var(--font-russo)", label: "Russo One (Bold)" },
+      { value: "var(--font-blackops)", label: "Black Ops (Military)" },
+      { value: "var(--font-bangers)", label: "Bangers (Comic)" },
+      { value: "var(--font-pacifico)", label: "Pacifico (Script)" },
+      { value: "var(--font-playfair)", label: "Playfair Display" },
+      { value: "var(--font-satisfy)", label: "Satisfy (Cursive)" },
+      { value: "Georgia, serif", label: "Georgia (Classic)" },
+      { value: "'Courier New', monospace", label: "Courier (Typewriter)" },
+    ],
+    default: "var(--font-inter)",
+  },
   {
     key: "--neo-radius",
     label: "Border Radius",
@@ -749,29 +771,45 @@ function CustomSelect({
   );
 }
 
-export function ThemeChanger({ className }: { className?: string }) {
-  const { themeConfig, setThemeConfig } = useTheme();
+export function ThemeChanger({
+  className,
+  isAdmin = false,
+}: {
+  className?: string;
+  isAdmin?: boolean;
+}) {
+  const {
+    themeConfig,
+    setThemeConfig,
+    userThemeConfig,
+    setUserTheme,
+    isAdminForcedTheme,
+  } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [localConfig, setLocalConfig] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState<string>("");
+  const [applyMode, setApplyMode] = useState<"local" | "broadcast">("local");
 
   const filteredPresets = PRESETS;
 
   useEffect(() => {
     if (!isOpen) {
-      setLocalConfig(themeConfig);
+      // Use appropriate config based on mode
+      const configToUse =
+        isAdmin || !userThemeConfig ? themeConfig : userThemeConfig;
+      setLocalConfig(configToUse);
       const match = PRESETS.find((p) =>
         Object.keys(p.config).every(
           (k) =>
-            localConfig[k] === p.config[k] || themeConfig[k] === p.config[k],
+            localConfig[k] === p.config[k] || configToUse[k] === p.config[k],
         ),
       );
       if (match) {
         setSelectedTheme(match.name);
       }
     }
-  }, [themeConfig, isOpen]);
+  }, [themeConfig, userThemeConfig, isOpen, isAdmin]);
 
   const handleValueChange = (key: string, value: string) => {
     const newConfig = { ...localConfig, [key]: value };
@@ -785,14 +823,36 @@ export function ThemeChanger({ className }: { className?: string }) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await fetch("/api/admin/theme", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ variables: localConfig }),
-      });
-      setThemeConfig(localConfig);
+      if (applyMode === "broadcast" && isAdmin) {
+        // Broadcast to all users (admin only)
+        await fetch("/api/admin/theme", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ variables: localConfig, is_forced: true }),
+        });
+        setThemeConfig(localConfig, false);
+      } else {
+        // Save locally for this user only
+        setUserTheme(localConfig);
+      }
     } catch (err) {
       console.error("Failed to save theme:", err);
+    } finally {
+      setIsSaving(false);
+      setIsOpen(false);
+    }
+  };
+
+  const handleReset = async () => {
+    setIsSaving(true);
+    try {
+      await fetch("/api/admin/theme/reset", {
+        method: "POST",
+      });
+      // Apply user's local theme or default
+      setThemeConfig(userThemeConfig || {}, true);
+    } catch (err) {
+      console.error("Failed to reset theme:", err);
     } finally {
       setIsSaving(false);
       setIsOpen(false);
@@ -853,9 +913,10 @@ export function ThemeChanger({ className }: { className?: string }) {
       )}
 
       <div
-        className={`fixed top-0 right-0 h-full w-full sm:w-[420px] bg-[var(--color-bg)] border-l-[var(--neo-border-width)] border-[var(--color-border)] z-50 transform transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] shadow-[-10px_0_0_rgba(0,0,0,1)] ${isOpen ? "translate-x-0" : "translate-x-[110%]"}`}
+        className={`fixed top-0 right-0 h-full w-full sm:w-[420px] bg-[var(--color-bg)] border-l-[var(--neo-border-width)] border-[var(--color-border)] z-[60] transform transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] shadow-[-10px_0_0_rgba(0,0,0,1)] ${isOpen ? "translate-x-0" : "translate-x-[110%]"}`}
+        style={{ overflowX: "visible" }}
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full overflow-x-visible">
           <div className="flex items-center justify-between p-4 border-b-[var(--neo-border-width)] border-[var(--color-border)] bg-[var(--color-surface)]">
             <h2 className="text-xl font-black uppercase flex items-center gap-2">
               <Settings2 size={24} /> Theme Options
@@ -868,19 +929,52 @@ export function ThemeChanger({ className }: { className?: string }) {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          <div className="flex-1 overflow-y-auto overflow-x-visible p-4 space-y-6">
             <div className="space-y-2">
               <h3 className="font-bold uppercase text-xs opacity-70">Theme</h3>
-              <CustomSelect
-                value={selectedTheme}
-                onChange={(name) => {
-                  const preset = PRESETS.find((p) => p.name === name);
+              <Select
+                value={
+                  selectOptions.find((opt) => opt.value === selectedTheme) ||
+                  null
+                }
+                onChange={(option) => {
+                  const preset = PRESETS.find((p) => p.name === option?.value);
                   if (preset) {
                     applyPreset(preset.config, preset.dataTheme, preset.name);
                   }
                 }}
                 options={selectOptions}
                 placeholder="-- Choose a Theme --"
+                styles={{
+                  control: (base) => ({
+                    ...base,
+                    border: "2px solid var(--color-border)",
+                    borderRadius: "var(--neo-radius, 0px)",
+                    backgroundColor: "var(--color-surface)",
+                    color: "var(--color-text)",
+                  }),
+                  singleValue: (base) => ({
+                    ...base,
+                    color: "var(--color-text)",
+                  }),
+                  menu: (base) => ({
+                    ...base,
+                    backgroundColor: "var(--color-surface)",
+                    border: "2px solid var(--color-border)",
+                    zIndex: 100,
+                  }),
+                  option: (base, state) => ({
+                    ...base,
+                    backgroundColor: state.isSelected
+                      ? "var(--color-primary)"
+                      : state.isFocused
+                        ? "var(--color-bg)"
+                        : "var(--color-surface)",
+                    color: state.isSelected
+                      ? "var(--color-bg)"
+                      : "var(--color-text)",
+                  }),
+                }}
               />
             </div>
 
@@ -895,46 +989,96 @@ export function ThemeChanger({ className }: { className?: string }) {
                 const val = localConfig[v.key] ?? v.default;
 
                 if (v.type === "color") {
+                  const [isColorPickerOpen, setIsColorPickerOpen] =
+                    useState(false);
                   return (
-                    <div
-                      key={v.key}
-                      className="flex items-center justify-between gap-4"
-                    >
-                      <label className="text-sm font-bold truncate flex-1">
-                        {v.label}
-                      </label>
-                      <div
-                        className="flex items-center gap-2 shrink-0"
-                        dir="rtl"
-                      >
-                        <input
-                          type="text"
-                          value={val}
-                          onChange={(e) =>
-                            handleValueChange(v.key, e.target.value)
-                          }
-                          className="neo-input py-1 px-2 text-sm w-24 font-mono uppercase"
-                          dir="ltr"
-                        />
-                        <input
-                          type="color"
-                          value={val.length === 7 ? val : v.default}
-                          onChange={(e) =>
-                            handleValueChange(
-                              v.key,
-                              e.target.value.toUpperCase(),
-                            )
-                          }
-                          className="w-8 h-8 rounded border-2 border-[var(--color-border)] cursor-pointer p-0 bg-transparent"
-                          style={{
-                            appearance: "none",
-                            WebkitAppearance: "none",
-                          }}
-                        />
+                    <div key={v.key} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-bold">{v.label}</label>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-8 h-8 rounded border-2 border-[var(--color-border)] cursor-pointer relative"
+                            style={{ backgroundColor: val }}
+                            onClick={() =>
+                              setIsColorPickerOpen(!isColorPickerOpen)
+                            }
+                          />
+                          <input
+                            type="text"
+                            value={val}
+                            onChange={(e) =>
+                              handleValueChange(v.key, e.target.value)
+                            }
+                            className="neo-input py-1 px-2 text-sm w-26 font-mono uppercase"
+                            dir="ltr"
+                          />
+                        </div>
                       </div>
+                      {isColorPickerOpen && (
+                        <div className="flex justify-center p-2 bg-[var(--color-surface)] border-2 border-[var(--color-border)]">
+                          <HexColorPicker
+                            color={val.length === 7 ? val : v.default}
+                            onChange={(color) =>
+                              handleValueChange(v.key, color.toUpperCase())
+                            }
+                            style={{ width: "100%", height: "150px" }}
+                          />
+                        </div>
+                      )}
                     </div>
                   );
                 }
+
+                // if (v.type === "font") {
+                //   const fontOptions = v.options || [];
+                //   const currentFont = val || v.default;
+                //   const selectedOption = fontOptions.find(
+                //     (opt) => opt.value === currentFont,
+                //   );
+
+                //   return (
+                //     <div key={v.key} className="space-y-2">
+                //       <label className="text-sm font-bold">{v.label}</label>
+                //       <Select
+                //         value={selectedOption || fontOptions[0]}
+                //         onChange={(option) =>
+                //           handleValueChange(v.key, option?.value || v.default)
+                //         }
+                //         options={fontOptions}
+                //         styles={{
+                //           control: (base) => ({
+                //             ...base,
+                //             border: "2px solid var(--color-border)",
+                //             borderRadius: "var(--neo-radius, 0px)",
+                //             backgroundColor: "var(--color-surface)",
+                //             color: "var(--color-text)",
+                //           }),
+                //           singleValue: (base) => ({
+                //             ...base,
+                //             color: "var(--color-text)",
+                //           }),
+                //           menu: (base) => ({
+                //             ...base,
+                //             backgroundColor: "var(--color-surface)",
+                //             border: "2px solid var(--color-border)",
+                //             zIndex: 100,
+                //           }),
+                //           option: (base, state) => ({
+                //             ...base,
+                //             backgroundColor: state.isSelected
+                //               ? "var(--color-primary)"
+                //               : state.isFocused
+                //                 ? "var(--color-bg)"
+                //                 : "var(--color-surface)",
+                //             color: state.isSelected
+                //               ? "var(--color-bg)"
+                //               : "var(--color-text)",
+                //           }),
+                //         }}
+                //       />
+                //     </div>
+                //   );
+                // }
 
                 if (v.type === "range") {
                   const numVal = parseInt(val.replace(v.unit!, "")) || 0;
@@ -966,14 +1110,53 @@ export function ThemeChanger({ className }: { className?: string }) {
             </div>
           </div>
 
-          <div className="p-4 border-t-[var(--neo-border-width)] border-[var(--color-border)] bg-[var(--color-bg)] mt-auto">
+          <div className="p-4 border-t-[var(--neo-border-width)] border-[var(--color-border)] bg-[var(--color-bg)] mt-auto space-y-3">
+            {isAdmin && (
+              <div className="flex gap-2 p-2 bg-[var(--color-surface)] border-2 border-[var(--color-border)]">
+                <button
+                  onClick={() => setApplyMode("local")}
+                  className={`flex-1 py-2 px-3 text-xs font-bold uppercase border-2 ${
+                    applyMode === "local"
+                      ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-bg)]"
+                      : "border-[var(--color-border)]"
+                  }`}
+                >
+                  My Theme Only
+                </button>
+                <button
+                  onClick={() => setApplyMode("broadcast")}
+                  className={`flex-1 py-2 px-3 text-xs font-bold uppercase border-2 ${
+                    applyMode === "broadcast"
+                      ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-bg)]"
+                      : "border-[var(--color-border)]"
+                  }`}
+                >
+                  Broadcast All
+                </button>
+              </div>
+            )}
+
+            {isAdminForcedTheme && isAdmin && (
+              <button
+                onClick={handleReset}
+                disabled={isSaving}
+                className="w-full py-2 px-3 text-xs font-bold uppercase border-2 border-[var(--color-border)] bg-[var(--color-surface)]"
+              >
+                Reset to User Themes
+              </button>
+            )}
+
             <NeoButton
               variant="primary"
               className="w-full text-lg shadow-[4px_4px_0_var(--color-primary)] hover:translate-x-[2px] border-[var(--color-primary)]"
               onClick={handleSave}
               disabled={isSaving}
             >
-              {isSaving ? "SAVING..." : "SAVE & BROADCAST THEME"}
+              {isSaving
+                ? "SAVING..."
+                : applyMode === "broadcast"
+                  ? "BROADCAST THEME"
+                  : "SAVE THEME"}
             </NeoButton>
           </div>
         </div>

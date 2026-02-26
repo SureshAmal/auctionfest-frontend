@@ -109,20 +109,19 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
             .filter(o => o.offering_team_id === userTeam.id || o.offering_team_id === userTeam.id?.toString())
             .map(offer => {
                 const plot = plots.find(p => p.number === offer.plot_number);
-                const originalPrice = plot ? (Number(plot.current_bid) || Number(plot.total_plot_price) || 0) : 0;
+                const purchasePrice = plot ? (Number(plot.purchase_price) || 0) : 0;
                 const buyer = allTeams.find(t => t.id === offer.buyer_team_id || t.id === offer.buyer_team_id?.toString());
                 return {
                     plotNumber: offer.plot_number,
                     soldPrice: Number(offer.asking_price),
                     buyerName: buyer?.name || offer.buyer_name || "Unknown",
-                    originalPrice,
-                    profit: Number(offer.asking_price) - originalPrice
+                    purchasePrice,
+                    profit: Number(offer.asking_price) - purchasePrice
                 };
             });
     }, [rebidOffersSold, userTeam, plots, allTeams]);
 
     const totalRevenue = soldPlots.reduce((sum, p) => sum + p.price, 0);
-    const myPortfolioValue = myPlots.reduce((sum, p) => sum + p.currentValue, 0);
 
     const trackingColumns: ColumnDef<any>[] = [
         {
@@ -198,6 +197,11 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
             accessorKey: "buyerName",
             header: () => <div className="text-center">Sold To</div>,
             cell: ({ row }) => <div className="text-[var(--color-primary)] truncate max-w-[80px] text-center w-full font-bold">{row.original.buyerName}</div>
+        },
+        {
+            accessorKey: "purchasePrice",
+            header: () => <div className="text-center">Bought</div>,
+            cell: ({ row }) => <div className="text-right font-mono w-full pr-2">₹{row.original.purchasePrice.toLocaleString("en-IN")}</div>
         },
         {
             accessorKey: "soldPrice",
@@ -340,7 +344,7 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                                             }}
                                         >
                                             <div className="w-full h-full p-2 sm:p-4 flex items-center justify-center">
-                                                <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} currentRound={currentRound} />
+                                                <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} currentRound={currentRound} rebidOffers={rebidOffers} />
                                             </div>
                                         </div>
                                         <div className="bg-[var(--color-bg)] px-2 py-1 text-xs font-bold uppercase border-t-2 border-[var(--color-border)] text-center">
@@ -397,18 +401,18 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
             {/* Full Screen Image Viewer */}
             <AnimatePresence>
                 {isFullScreen && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-md p-2 sm:p-4">
                         {/* Controls */}
-                        <div className="absolute top-4 right-4 flex gap-2 z-50">
-                            <NeoButton variant="base" onClick={() => setScale(s => Math.max(0.5, s - 0.5))}>
+                        <div className="absolute top-2 right-2 sm:top-4 sm:right-4 flex gap-1 sm:gap-2 z-50">
+                            <NeoButton variant="base" size="sm" onClick={() => setScale(s => Math.max(0.5, s - 0.5))}>
                                 -
                             </NeoButton>
-                            <span className="bg-[var(--color-bg)] px-2 py-1 font-bold flex items-center border-2 border-[var(--color-border)]">{Math.round(scale * 100)}%</span>
-                            <NeoButton variant="base" onClick={() => setScale(s => Math.min(5, s + 0.5))}>
+                            <span className="bg-[var(--color-bg)] px-1 sm:px-2 py-1 font-bold flex items-center text-xs sm:text-sm border-2 border-[var(--color-border)]">{Math.round(scale * 100)}%</span>
+                            <NeoButton variant="base" size="sm" onClick={() => setScale(s => Math.min(5, s + 0.5))}>
                                 +
                             </NeoButton>
-                            <NeoButton variant="secondary" onClick={() => setIsFullScreen(false)}>
-                                <X size={20} />
+                            <NeoButton variant="secondary" size="sm" onClick={() => setIsFullScreen(false)}>
+                                <X size={16} />
                             </NeoButton>
                         </div>
 
@@ -418,17 +422,20 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                             initial={{ opacity: 0, scale: 0.5 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.5 }}
-                            className="w-full h-full overflow-hidden relative cursor-grab active:cursor-grabbing flex items-center justify-center p-8"
+                            className="w-full h-full overflow-hidden relative cursor-grab active:cursor-grabbing flex items-center justify-center"
                         >
                             <motion.div
-                                style={{ scale, x: 0, y: 0 }}
                                 drag
                                 dragConstraints={containerRef}
                                 dragElastic={0.2}
                                 dragMomentum={false}
-                                className="w-[80vw] h-[80vh] shadow-2xl bg-[var(--color-bg)] border-4 border-[var(--color-border)]"
+                                className="w-full h-full shadow-2xl bg-[var(--color-bg)] border-4 border-[var(--color-border)]"
                             >
-                                <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} currentRound={currentRound} />
+                                <div className="w-full h-full overflow-auto">
+                                    <motion.div style={{ scale }}>
+                                        <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} currentRound={currentRound} rebidOffers={rebidOffers} />
+                                    </motion.div>
+                                </div>
                             </motion.div>
                         </motion.div>
                     </div>

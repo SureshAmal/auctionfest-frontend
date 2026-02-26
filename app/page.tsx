@@ -7,7 +7,7 @@ import NeoLayout from "../components/neo/NeoLayout";
 import NeoCard from "../components/neo/NeoCard";
 import NeoButton from "../components/neo/NeoButton";
 import NeoInput from "../components/neo/NeoInput";
-import { Loader2, Users, ArrowRight, ShieldAlert } from "lucide-react";
+import { Loader2, Users, ArrowRight, ShieldAlert, Activity } from "lucide-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 
@@ -95,10 +95,10 @@ export default function Home() {
             className="text-4xl sm:text-6xl font-black uppercase tracking-normal mb-2"
             style={{ textShadow: "4px 4px 0 var(--color-surface)" }}
           >
-            AU-FEST
+            Planomics
           </h1>
           <p className="text-lg sm:text-xl font-bold uppercase tracking-widest bg-[var(--color-text)] text-[var(--color-bg)] px-4 py-1 inline-block -rotate-2">
-            2026 Auction
+            Auction
           </p>
         </div>
 
@@ -160,7 +160,14 @@ export default function Home() {
           </div>
         </NeoCard>
 
-        <div className="mt-8 text-center">
+        <div className="mt-8 text-center space-y-4">
+          <a
+            href="/live"
+            className="inline-flex items-center gap-2 px-4 py-2 border-2 border-[var(--color-border)] font-bold uppercase text-xs bg-[var(--color-primary)] text-[var(--color-bg)] hover:opacity-80 transition-opacity"
+          >
+            <Activity size={14} />
+            Watch Live Auction
+          </a>
           <div
             className={`inline-flex items-center gap-2 px-4 py-2 border-2 border-[var(--color-border)] font-bold uppercase text-xs ${isConnected ? "bg-[var(--color-success)]" : "bg-[var(--color-danger)]"}`}
           >

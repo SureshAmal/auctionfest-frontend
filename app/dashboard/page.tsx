@@ -19,6 +19,7 @@ import CityMap from "@/components/map/CityMap";
 import NeoCard from "../../components/neo/NeoCard";
 import NeoBadge from "../../components/neo/NeoBadge";
 import NeoButton from "../../components/neo/NeoButton";
+import { ThemeChanger } from "@/components/ThemeChanger";
 import { motion, AnimatePresence } from "framer-motion";
 
 /** Component to dynamically fetch, parse, and animate SVG plots from /plots_svg/ */
@@ -123,6 +124,7 @@ export default function Dashboard() {
   const [rebidOffersSold, setRebidOffersSold] = useState<any[]>([]);
   const [markupInput, setMarkupInput] = useState<Record<number, string>>({});
 
+  // Round 4 specifics
   // Round 4 phase: 'sell' | 'bid' | null
   const [round4Phase, setRound4Phase] = useState<string | null>(null);
 
@@ -228,6 +230,17 @@ export default function Dashboard() {
 
   const [sellCountdown, setSellCountdown] = useState(3);
   const [connectionRejected, setConnectionRejected] = useState<string>("");
+  const [sellAlert, setSellAlert] = useState<{
+    message: string;
+    isError?: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (sellAlert) {
+      const timer = setTimeout(() => setSellAlert(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [sellAlert]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -283,7 +296,6 @@ export default function Dashboard() {
     });
 
     const handleStateUpdate = (data: any) => {
-      console.log("State Update:", data);
       setAuctionStatus(data.status);
       if (data.current_round) setCurrentRound(data.current_round);
 
@@ -317,7 +329,6 @@ export default function Dashboard() {
     };
 
     const handleNewBid = (data: any) => {
-      console.log("New Bid:", data);
       setRecentBids((prev) => [data, ...prev].slice(0, 10));
 
       setCurrentPlot((prev: any) =>
@@ -340,12 +351,10 @@ export default function Dashboard() {
     };
 
     const handleRoundChange = (data: any) => {
-      console.log("Round Change:", data);
       setCurrentRound(data.current_round);
     };
 
     const handlePlotAdjustment = (data: any) => {
-      console.log("Plot Adjustment:", data);
       if (data.plot) {
         // Update the plot data
         setPlots((prev) => {
@@ -424,7 +433,6 @@ export default function Dashboard() {
     };
 
     const handleActiveQuestion = (data: any) => {
-      console.log("Active Question Update:", data);
       setActiveQuestion(data.question);
       // Clear recent adjustments when a new policy question is pushed
       setRecentAdjustments({});
@@ -469,10 +477,9 @@ export default function Dashboard() {
 
     // Handle being banned
     socket.on("banned", (data: any) => {
-      alert(data.message || "Your team has been banned.");
+      setConnectionRejected(data.message || "Your team has been banned.");
       socket.disconnect();
       localStorage.clear();
-      window.location.href = "/";
     });
 
     return () => {
@@ -547,12 +554,24 @@ export default function Dashboard() {
       className="min-h-screen lg:h-screen lg:overflow-hidden"
       containerized={false}
     >
+      {sellAlert && (
+        <div
+          className={`fixed top-4 left-1/2 -translate-x-1/2 z-[9999] px-6 py-4 font-bold border-4 shadow-[4px_4px_0_rgba(0,0,0,1)] flex items-center gap-3 animate-in slide-in-from-top fade-in duration-300 ${
+            sellAlert.isError
+              ? "bg-[var(--color-danger)] text-white border-black"
+              : "bg-[var(--color-success)] text-black border-black"
+          }`}
+        >
+          <AlertTriangle size={24} />
+          <span>{sellAlert.message}</span>
+        </div>
+      )}
       <div className="flex flex-col h-full min-h-screen lg:min-h-0 p-2 sm:p-4 pb-2">
         {/* Header */}
-        <header className="flex flex-col md:flex-row justify-between items-center mb-3 gap-2 border-b-4 border-[var(--color-border)] pb-3 bg-[var(--color-bg)] shrink-0">
-          <div>
+        <header className="flex flex-col md:flex-row justify-between items-center mb-3 gap-2 border-b-4 border-[var(--color-border)] pb-3 bg-[var(--color-bg)] shrink-0 min-h-[80px]">
+          <div className="min-h-[60px]">
             <h1 className="text-2xl sm:text-4xl font-black uppercase text-[var(--color-primary)]">
-              AU-FEST 2026
+              Planomics
             </h1>
             <div className="flex items-center gap-3 text-xs font-bold uppercase mt-1">
               <span
@@ -567,14 +586,17 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 sm:gap-4 items-center justify-end">
+          <div className="flex flex-wrap gap-2 sm:gap-4 items-center justify-end min-h-[50px]">
             {(() => {
               const remainingCash =
                 Number(userTeam.budget) - Number(userTeam.spent || 0);
               const portfolioValue = plots
                 .filter(
                   (p) =>
-                    p.winner_team_id === userTeam.id && p.status === "sold",
+                    p.winner_team_id === userTeam.id &&
+                    (p.status === "sold" ||
+                      (round4Phase === "bid" &&
+                        (p.status === "active" || p.status === "pending"))),
                 )
                 .reduce(
                   (sum, p) =>
@@ -584,7 +606,7 @@ export default function Dashboard() {
                   0,
                 );
               return (
-                <div className="flex neo-border  text-[var(--color-bg)] shadow-[4px_4px_0_var(--neo-shadow-color)] overflow-hidden">
+                <div className="flex neo-border text-[var(--color-bg)] shadow-[4px_4px_0_var(--neo-shadow-color)] overflow-hidden min-h-[50px]">
                   <div className="flex flex-col bg-[var(--color-text)] justify-center items-center px-3 sm:px-4 py-2 border-r-2 border-[var(--color-bg)]/15">
                     <p className="text-[8px] sm:text-[10px] font-black uppercase opacity-60 tracking-wider">
                       Cash
@@ -614,7 +636,7 @@ export default function Dashboard() {
               );
             })()}
 
-            <div className="flex items-center gap-2 neo-border border-[var(--color-primary)] px-3 py-2 bg-[var(--color-primary)] text-[var(--color-bg)] shadow-[4px_4px_0_var(--neo-shadow-color)]">
+            <div className="flex items-center gap-2 min-h-[50px] neo-border border-[var(--color-primary)] px-3 py-2 bg-[var(--color-primary)] text-[var(--color-bg)] shadow-[4px_4px_0_var(--neo-shadow-color)]">
               <span className="font-black text-xl bg-[var(--color-bg)] text-[var(--color-primary)] w-8 h-8 flex items-center justify-center">
                 {userTeam.name.charAt(0)}
               </span>
@@ -623,14 +645,9 @@ export default function Dashboard() {
               </span>
             </div>
 
-            {/* Mobile: My Plots Button */}
-            <button
-              onClick={() => setTrackerOpen(true)}
-              className="lg:hidden p-3 bg-[var(--color-success)] text-[var(--color-bg)] border-4 border-[var(--color-border)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none shadow-[4px_4px_0_var(--neo-shadow-color)] transition-all"
-              title="My Portfolio"
-            >
-              <Activity size={20} strokeWidth={3} />
-            </button>
+            <div className="min-h-[50px] flex items-center">
+              <ThemeChanger className="p-2" />
+            </div>
 
             <button
               onClick={() => {
@@ -753,6 +770,7 @@ export default function Dashboard() {
                   allTeams={allTeams}
                   recentAdjustments={recentAdjustments}
                   currentRound={currentRound}
+                  rebidOffers={rebidOffers}
                 />
               </div>
             </NeoCard>
@@ -780,6 +798,7 @@ export default function Dashboard() {
                     allTeams={allTeams}
                     recentAdjustments={recentAdjustments}
                     currentRound={currentRound}
+                    rebidOffers={rebidOffers}
                   />
                 </div>
               </NeoCard>
@@ -799,7 +818,11 @@ export default function Dashboard() {
                       const portfolioValue = plots
                         .filter(
                           (p) =>
-                            p.winner_team_id === team.id && p.status === "sold",
+                            p.winner_team_id === team.id &&
+                            (p.status === "sold" ||
+                              (round4Phase === "bid" &&
+                                (p.status === "active" ||
+                                  p.status === "pending"))),
                         )
                         .reduce(
                           (sum, p) =>
@@ -933,14 +956,20 @@ export default function Dashboard() {
                                         }),
                                       },
                                     );
-                                    if (!res.ok)
-                                      alert((await res.json()).detail);
-                                    else
+                                    if (!res.ok) {
+                                      const err = await res.json();
+                                      setSellAlert({
+                                        message:
+                                          err.detail || "Failed to unsell plot",
+                                        isError: true,
+                                      });
+                                    } else {
                                       setMarkupInput((prev) => ({
                                         ...prev,
                                         [plot.number]:
                                           Math.floor(minAllowed).toString(),
                                       }));
+                                    }
                                   } catch (e) {
                                     console.error(e);
                                   }
@@ -1003,9 +1032,11 @@ export default function Dashboard() {
                                       price > Math.floor(maxAllowed) ||
                                       price < Math.floor(minAllowed)
                                     ) {
-                                      return alert(
-                                        `Invalid price! Min: ₹${Math.floor(minAllowed).toLocaleString("en-IN")} — Max: ₹${Math.floor(maxAllowed).toLocaleString("en-IN")}`,
-                                      );
+                                      setSellAlert({
+                                        message: `Invalid price! Min: ₹${Math.floor(minAllowed).toLocaleString("en-IN")} — Max: ₹${Math.floor(maxAllowed).toLocaleString("en-IN")}`,
+                                        isError: true,
+                                      });
+                                      return;
                                     }
 
                                     try {
@@ -1023,13 +1054,19 @@ export default function Dashboard() {
                                           }),
                                         },
                                       );
-                                      if (!res.ok)
-                                        alert((await res.json()).detail);
-                                      else
+                                      if (!res.ok) {
+                                        const err = await res.json();
+                                        setSellAlert({
+                                          message:
+                                            err.detail || "Failed to list plot",
+                                          isError: true,
+                                        });
+                                      } else {
                                         setMarkupInput((prev) => ({
                                           ...prev,
                                           [plot.number]: "",
                                         }));
+                                      }
                                     } catch (e) {
                                       console.error(e);
                                     }
@@ -1094,9 +1131,6 @@ export default function Dashboard() {
                               >
                                 {sellCountdown}
                               </motion.span>
-                              <p className="text-[var(--color-bg)] font-black text-4xl mt-4 tracking-widest uppercase bg-[var(--color-text)] px-6 py-2 border-4 border-[var(--color-bg)]">
-                                Going Once...
-                              </p>
                             </motion.div>
                           )}
                         </AnimatePresence>
@@ -1123,6 +1157,16 @@ export default function Dashboard() {
                     <Info size={20} /> Plot #{currentPlot.number} Details
                   </h2>
                   <div className="grid grid-cols-2 gap-3">
+                    {currentRound === 4 && currentPlot.plot_type && (
+                      <div className="neo-border p-3 bg-[var(--color-surface)] col-span-2">
+                        <p className="text-xs font-bold uppercase text-[var(--color-text)] opacity-50">
+                          Plot Type
+                        </p>
+                        <p className="font-black text-lg">
+                          {currentPlot.plot_type}
+                        </p>
+                      </div>
+                    )}
                     <div className="neo-border p-3 bg-[var(--color-surface)]">
                       <p className="text-xs font-bold uppercase text-[var(--color-text)] opacity-50">
                         Base Price
@@ -1155,6 +1199,7 @@ export default function Dashboard() {
                         {currentPlot.total_area?.toLocaleString() || "0"} sq ft
                       </p>
                     </div>
+
                     {Number(currentPlot.round_adjustment) !== 0 &&
                       currentRound !== 4 && (
                         <div
@@ -1196,16 +1241,16 @@ export default function Dashboard() {
                 currentRound === 3 ||
                 currentRound === 5 ||
                 currentRound === 6) && (
-                <NeoCard className="shrink-0">
+                <NeoCard className="shrink-0 flex-1">
                   <h3 className="text-sm font-black uppercase mb-2 flex items-center gap-2">
                     🏆 Sold Plots
                   </h3>
-                  <div className="max-h-[200px] overflow-y-auto">
+                  <div className="max-h-[300px] overflow-y-auto">
                     {plots.filter(
                       (p) =>
                         p.status?.toLowerCase() === "sold" && p.winner_team_id,
                     ).length > 0 ? (
-                      <table className="w-full text-xs">
+                      <table className="w-full text-xs text-[var(--color-text)]">
                         <thead>
                           <tr className="border-b-2 border-[var(--color-border)] text-left uppercase">
                             <th className="py-1 px-1">Plot</th>
@@ -1223,7 +1268,7 @@ export default function Dashboard() {
                             .map((p) => (
                               <tr
                                 key={p.number}
-                                className="border-b border-[var(--color-border)] opacity-20"
+                                className="border-b border-[var(--color-border)] opacity-70"
                               >
                                 <td className="py-1 px-1 font-bold">
                                   #{p.number}

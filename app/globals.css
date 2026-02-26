@@ -21,10 +21,23 @@
     --neo-shadow-blur: 0px;
     --neo-shadow-color: #000000;
 
-    /* Typography */
-    --font-family: inherit;
+    /* Typography - Font variables for themes */
+    --font-family: 'Inter', sans-serif;
     --font-weight-bold: 800;
     --font-weight-heavy: 900;
+    
+    /* Pre-define all font variables */
+    --font-inter: 'Inter', sans-serif;
+    --font-pixel: 'Press Start 2P', cursive;
+    --font-orbitron: 'Orbitron', sans-serif;
+    --font-rajdhani: 'Rajdhani', sans-serif;
+    --font-russo: 'Russo One', sans-serif;
+    --font-blackops: 'Black Ops One', cursive;
+    --font-bangers: 'Bangers', cursive;
+    --font-space: 'Space Grotesk', sans-serif;
+    --font-pacifico: 'Pacifico', cursive;
+    --font-playfair: 'Playfair Display', serif;
+    --font-satisfy: 'Satisfy', cursive;
 
     /* Animation */
     --neo-transition-fast: 120ms cubic-bezier(0.2, 0.8, 0.2, 1);
