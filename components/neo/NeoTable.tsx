@@ -32,18 +32,19 @@ export default function NeoTable<TData, TValue>({ columns, data, onRowClick }: N
 
     return (
         <div className="w-full h-full overflow-auto bg-[var(--color-bg)] text-[var(--color-text)] relative">
-            <table className="w-full text-center border-separate border-spacing-0 border-4 border-[var(--color-border)] border-r-0 border-b-0">
-                <thead className="text-[var(--color-text)]">
+            <table className="w-full min-w-[600px] text-center border-separate border-spacing-0 border-4 border-[var(--color-border)]">
+                <thead className="text-[var(--color-text)] sticky top-0 z-40">
                     {table.getHeaderGroups().map((headerGroup) => (
                         <tr key={headerGroup.id}>
-                            {headerGroup.headers.map((header) => {
+                            {headerGroup.headers.map((header, index) => {
                                 const isSortable = header.column.getCanSort();
+                                const isLast = index === headerGroup.headers.length - 1;
 
                                 return (
                                     <th
                                         key={header.id}
                                         onClick={header.column.getToggleSortingHandler()}
-                                        className={`sticky top-0 z-30 bg-[var(--color-surface)] py-3 px-3 font-black uppercase tracking-wider border-r-4 border-b-4 border-[var(--color-border)] last:border-r-0 ${isSortable ? "cursor-pointer hover:brightness-110 active:brightness-120 transition-colors select-none" : ""}`}
+                                        className={`bg-[var(--color-surface)] py-3 px-3 font-black uppercase tracking-wider border-r-4 border-b-4 border-[var(--color-border)] ${isLast ? "border-r-0" : ""} ${isSortable ? "cursor-pointer hover:brightness-110 active:brightness-120 transition-colors select-none" : ""}`}
                                     >
                                         <div className="flex items-center justify-center gap-1">
                                             {header.isPlaceholder
@@ -69,22 +70,30 @@ export default function NeoTable<TData, TValue>({ columns, data, onRowClick }: N
                 </thead>
                 <tbody className="bg-[var(--color-bg)] [&>tr>td]:border-b-4 [&>tr>td]:border-r-4 [&>tr>td]:border-[var(--color-border)] [&>tr>td:last-child]:border-r-0 relative z-0">
                     {table.getRowModel().rows?.length ? (
-                        table.getRowModel().rows.map((row) => (
+                        table.getRowModel().rows.map((row, rowIndex) => (
                             <tr
                                 key={row.id}
                                 onClick={() => onRowClick && onRowClick(row.original)}
                                 className={`hover:brightness-95 odd:bg-[var(--color-bg)] even:bg-[var(--color-bg)] font-bold text-sm ${onRowClick ? "cursor-pointer" : ""}`}
                             >
-                                {row.getVisibleCells().map((cell) => (
-                                    <td key={cell.id} className="py-2 px-3 truncate">
-                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                    </td>
-                                ))}
+                                {row.getVisibleCells().map((cell, cellIndex) => {
+                                    const isLastCell = cellIndex === row.getVisibleCells().length - 1;
+                                    const isLastRow = rowIndex === table.getRowModel().rows.length - 1;
+                                    
+                                    return (
+                                        <td 
+                                            key={cell.id} 
+                                            className={`py-2 px-3 truncate border-b-4 border-r-4 border-[var(--color-border)] ${isLastCell ? "border-r-0" : ""} ${isLastRow ? "border-b-0" : ""}`}
+                                        >
+                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                        </td>
+                                    );
+                                })}
                             </tr>
                         ))
                     ) : (
                         <tr>
-                            <td colSpan={columns.length} className="h-24 text-center font-bold uppercase opacity-50">
+                            <td colSpan={columns.length} className="h-24 text-center font-bold uppercase opacity-50 border-r-4 border-[var(--color-border)] last:border-r-0">
                                 No results.
                             </td>
                         </tr>

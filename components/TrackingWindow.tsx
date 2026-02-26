@@ -27,10 +27,17 @@ interface TrackingWindowProps {
 
 export default function TrackingWindow({ currentPlot, status, plots = [], allTeams = [], userTeam, currentRound = 1, rebidOffers = [], rebidOffersSold = [], forceOpen = false, onClose }: TrackingWindowProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
+    const [activeFabOption, setActiveFabOption] = useState<"my" | "listed" | "sold" | "all" | "map" | null>(null);
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [scale, setScale] = useState(1);
     const [activeTab, setActiveTab] = useState<"my" | "listed" | "sold" | "all">("my");
     const containerRef = useRef(null);
+    const isDragging = useRef(false);
+
+    const handleDragStart = useCallback(() => {
+        isDragging.current = true;
+    }, []);
 
     // Sync with forceOpen prop
     useEffect(() => {
@@ -43,22 +50,6 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
         setIsOpen(false);
         onClose?.();
     };
-
-    // Track drag state to prevent click-on-drag
-    const isDragging = useRef(false);
-
-    /** Called on drag start — set flag. */
-    const handleDragStart = useCallback(() => {
-        isDragging.current = true;
-    }, []);
-
-    /** Called on click — only open if we weren't dragging. */
-    const handleClick = useCallback(() => {
-        if (!isDragging.current) {
-            setIsOpen(true);
-        }
-        isDragging.current = false;
-    }, []);
 
     // Handle close from X button in modal
     const handleModalClose = () => {
@@ -229,57 +220,90 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
 
     return (
         <>
-            {/* The Floating Draggable Trigger — drag-safe */}
+            {/* Floating Action Button Menu - Draggable */}
             <motion.div
                 drag
                 dragMomentum={false}
+                dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
                 whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.98 }}
                 onDragStart={handleDragStart}
-                onClick={handleClick}
-                className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 cursor-pointer"
-                style={{ borderRadius: "var(--neo-radius)" }}
+                onClick={() => {
+                    if (!isDragging.current) {
+                        setIsFabMenuOpen(prev => !prev);
+                    }
+                    isDragging.current = false;
+                }}
+                className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-40 pointer-events-none"
             >
-                {/* Mini Dashboard Style Floating Tracker */}
-                <div className="bg-[var(--color-bg)] border-[length:var(--neo-border-width)] border-[var(--color-border)] shadow-[var(--neo-shadow-offset-x)_var(--neo-shadow-offset-y)_0_var(--neo-shadow-color)] flex flex-col w-56 sm:w-72 overflow-hidden" style={{ borderRadius: "var(--neo-radius)" }}>
-                    {/* Header */}
-                    <div className="bg-[var(--color-primary)] text-[var(--color-bg)] p-2 px-3 flex justify-between items-center border-b-[length:var(--neo-border-width)] border-[var(--color-border)]">
-                        <span className="font-black uppercase text-xs sm:text-sm flex items-center gap-2">
-                            <Activity size={14} className={status === "RUNNING" ? "animate-pulse" : ""} />
-                            <span className="hidden sm:inline">Live Tracker</span>
-                            <span className="sm:hidden">Tracker</span>
-                        </span>
-                        <span className="text-[10px] font-bold uppercase bg-[var(--color-bg)] text-[var(--color-text)] px-2 py-0.5 border-2 border-[var(--color-border)]" style={{ borderRadius: "calc(var(--neo-radius) / 2)" }}>
-                            {status}
-                        </span>
-                    </div>
-                    {/* Stats Body */}
-                    <div className="p-2 sm:p-3 bg-[var(--color-surface)] text-[var(--color-text)] flex justify-between items-center">
-                        <div className="flex flex-col">
-                            <span className="text-[8px] sm:text-[10px] font-bold uppercase opacity-60">Plots Sold</span>
-                            <span className="font-black text-lg sm:text-xl">{soldPlots.length}</span>
+                <div className="flex flex-col items-end gap-3 pointer-events-auto">
+                    {isFabMenuOpen && (
+                        <div className="flex flex-col gap-3 mb-1 animate-in slide-in-from-bottom-5 duration-200">
+                            <button
+                                onClick={() => { setActiveFabOption("my"); setIsFabMenuOpen(false); }}
+                                className="flex items-center gap-3 group"
+                            >
+                                <span className="neo-border bg-[var(--color-surface)] text-[var(--color-text)] px-3 py-1 text-xs font-black uppercase shadow-[2px_2px_0_var(--color-border)] group-hover:scale-105 transition-transform">My Plots ({myPlots.length})</span>
+                                <div className="w-12 h-12 bg-[var(--color-primary)] text-[var(--color-bg)] rounded-full flex items-center justify-center border-4 border-[var(--color-border)] shadow-[4px_4px_0_var(--color-border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all">
+                                    <MapPin size={24} />
+                                </div>
+                            </button>
+                            <button
+                                onClick={() => { setActiveFabOption("listed"); setIsFabMenuOpen(false); }}
+                                className="flex items-center gap-3 group"
+                            >
+                                <span className="neo-border bg-[var(--color-surface)] text-[var(--color-text)] px-3 py-1 text-xs font-black uppercase shadow-[2px_2px_0_var(--color-border)] group-hover:scale-105 transition-transform">Listed ({myListedPlots.length})</span>
+                                <div className="w-12 h-12 bg-[var(--color-secondary)] text-[var(--color-bg)] rounded-full flex items-center justify-center border-4 border-[var(--color-border)] shadow-[4px_4px_0_var(--color-border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all">
+                                    <Tag size={24} />
+                                </div>
+                            </button>
+                            <button
+                                onClick={() => { setActiveFabOption("sold"); setIsFabMenuOpen(false); }}
+                                className="flex items-center gap-3 group"
+                            >
+                                <span className="neo-border bg-[var(--color-surface)] text-[var(--color-text)] px-3 py-1 text-xs font-black uppercase shadow-[2px_2px_0_var(--color-border)] group-hover:scale-105 transition-transform">Sold ({mySoldPlots.length})</span>
+                                <div className="w-12 h-12 bg-green-600 text-[var(--color-bg)] rounded-full flex items-center justify-center border-4 border-[var(--color-border)] shadow-[4px_4px_0_var(--color-border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all">
+                                    <ShoppingCart size={24} />
+                                </div>
+                            </button>
+                            <button
+                                onClick={() => { setActiveFabOption("all"); setIsFabMenuOpen(false); }}
+                                className="flex items-center gap-3 group"
+                            >
+                                <span className="neo-border bg-[var(--color-surface)] text-[var(--color-text)] px-3 py-1 text-xs font-black uppercase shadow-[2px_2px_0_var(--color-border)] group-hover:scale-105 transition-transform">All Sold ({soldPlots.length})</span>
+                                <div className="w-12 h-12 bg-[var(--color-danger)] text-[var(--color-bg)] rounded-full flex items-center justify-center border-4 border-[var(--color-border)] shadow-[4px_4px_0_var(--color-border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all">
+                                    <Gavel size={24} />
+                                </div>
+                            </button>
+                            <button
+                                onClick={() => { setActiveFabOption("map"); setIsFabMenuOpen(false); }}
+                                className="flex items-center gap-3 group"
+                            >
+                                <span className="neo-border bg-[var(--color-surface)] text-[var(--color-text)] px-3 py-1 text-xs font-black uppercase shadow-[2px_2px_0_var(--color-border)] group-hover:scale-105 transition-transform">Map</span>
+                                <div className="w-12 h-12 bg-blue-600 text-[var(--color-bg)] rounded-full flex items-center justify-center border-4 border-[var(--color-border)] shadow-[4px_4px_0_var(--color-border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all">
+                                    <MapPin size={24} />
+                                </div>
+                            </button>
                         </div>
-                        <div className="w-[1px] h-6 sm:h-8 bg-[var(--color-border)] opacity-20"></div>
-                        <div className="flex flex-col items-end">
-                            <span className="text-[8px] sm:text-[10px] font-bold uppercase opacity-60">Total Revenue</span>
-                            <span className="font-black text-lg sm:text-xl text-[var(--color-success)] truncate max-w-[80px] sm:max-w-[120px]">
-                                ₹{(totalRevenue / 10000000).toFixed(2)}Cr
-                            </span>
-                        </div>
-                    </div>
+                    )}
+                    <button
+                        className={`w-14 h-14 ${isFabMenuOpen ? "bg-[var(--color-danger)] text-[var(--color-bg)]" : "bg-[var(--color-bg)] text-[var(--color-text)]"} rounded-full flex items-center justify-center border-4 border-[var(--color-border)] shadow-[4px_4px_0_var(--color-border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all pointer-events-auto`}
+                    >
+                        {isFabMenuOpen ? <X size={28} /> : <Activity size={28} />}
+                    </button>
                 </div>
             </motion.div>
 
-            {/* The Popup Modal */}
+            {/* The Popup Modal for selected option */}
             <AnimatePresence>
-                {isOpen && (
+                {activeFabOption && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                         {/* Backdrop */}
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            onClick={handleModalClose}
+                            onClick={() => setActiveFabOption(null)}
                             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                         />
 
@@ -290,67 +314,41 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
                             className="relative bg-[var(--color-bg)] border-4 border-[var(--color-border)] shadow-[8px_8px_0_var(--neo-shadow-color)] w-full max-w-4xl max-h-[90vh] flex flex-col pointer-events-auto overflow-hidden"
                         >
-                            {/* 1. Full Image Top */}
-                            <div className="relative bg-[var(--color-bg)] border-b-4 border-[var(--color-border)] h-[40vh] min-h-[250px] shrink-0 overflow-hidden">
-                                <div
-                                    className="relative w-full h-full cursor-zoom-in group"
-                                    onClick={() => {
-                                        setIsFullScreen(true);
-                                        setScale(1);
-                                    }}
-                                >
-                                    <div className="absolute inset-0 w-full h-full object-contain group-hover:scale-[1.02] transition-transform pointer-events-none p-4">
-                                        <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} currentRound={currentRound} />
-                                    </div>
-                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/20 transition-opacity pointer-events-none">
-                                        <span className="bg-[var(--color-text)] text-[var(--color-bg)] px-2 py-1 text-xs font-bold uppercase">Click to Zoom</span>
-                                    </div>
-                                </div>
-                                {/* Absolute Close Button */}
-                                <div className="absolute top-2 right-2">
-                                    <NeoButton variant="secondary" size="sm" onClick={() => setIsOpen(false)}>
-                                        <X size={20} />
-                                    </NeoButton>
-                                </div>
+                            {/* Header */}
+                            <div className="flex justify-between items-center border-b-4 border-[var(--color-border)] bg-[var(--color-surface)] shrink-0 p-4">
+                                <h2 className="font-black text-xl uppercase flex items-center gap-2">
+                                    {activeFabOption === "my" && <><MapPin size={20} /> My Plots ({myPlots.length})</>}
+                                    {activeFabOption === "listed" && <><Tag size={20} /> Listed ({myListedPlots.length})</>}
+                                    {activeFabOption === "sold" && <><ShoppingCart size={20} /> Sold ({mySoldPlots.length})</>}
+                                    {activeFabOption === "all" && <><Gavel size={20} /> All Sold ({soldPlots.length})</>}
+                                    {activeFabOption === "map" && <><MapPin size={20} /> City Map</>}
+                                </h2>
+                                <NeoButton variant="secondary" size="sm" onClick={() => setActiveFabOption(null)}>
+                                    <X size={20} />
+                                </NeoButton>
                             </div>
 
-                            {/* 2. Tab Header */}
-                            <div className="flex flex-wrap items-center border-b-4 border-[var(--color-border)] bg-[var(--color-surface)]">
-                                <button
-                                    onClick={() => setActiveTab("my")}
-                                    className={`py-3 px-4 text-sm font-black uppercase flex items-center justify-center gap-2 transition-all border-b-4 -mb-[4px] ${activeTab === "my" ? "border-[var(--color-primary)] bg-[var(--color-bg)] text-[var(--color-primary)]" : "border-transparent hover:bg-[var(--color-bg)]/50 opacity-60"}`}
-                                >
-                                    <MapPin size={16} /> My Plots ({myPlots.length})
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab("listed")}
-                                    className={`py-3 px-4 text-sm font-black uppercase flex items-center justify-center gap-2 transition-all border-b-4 -mb-[4px] ${activeTab === "listed" ? "border-[var(--color-primary)] bg-[var(--color-bg)] text-[var(--color-primary)]" : "border-transparent hover:bg-[var(--color-bg)]/50 opacity-60"}`}
-                                >
-                                    <Tag size={16} /> Listed ({myListedPlots.length})
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab("sold")}
-                                    className={`py-3 px-4 text-sm font-black uppercase flex items-center justify-center gap-2 transition-all border-b-4 -mb-[4px] ${activeTab === "sold" ? "border-[var(--color-primary)] bg-[var(--color-bg)] text-[var(--color-primary)]" : "border-transparent hover:bg-[var(--color-bg)]/50 opacity-60"}`}
-                                >
-                                    <ShoppingCart size={16} /> Sold ({mySoldPlots.length})
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab("all")}
-                                    className={`py-3 px-4 text-sm font-black uppercase flex items-center justify-center gap-2 transition-all border-b-4 -mb-[4px] ${activeTab === "all" ? "border-[var(--color-primary)] bg-[var(--color-bg)] text-[var(--color-primary)]" : "border-transparent hover:bg-[var(--color-bg)]/50 opacity-60"}`}
-                                >
-                                    <Gavel size={16} /> All Sold ({soldPlots.length})
-                                </button>
-                            </div>
-
-                            {/* 3. Tab Content */}
-                            <div className="min-h-0 flex-1 relative bg-[var(--color-bg)] w-full overflow-y-auto">
-                                {activeTab === "my" ? (
-                                    <>
-                                        {/* My plots summary bar */}
-                                        <div className="flex justify-between items-center px-4 py-2 bg-[var(--color-surface)] border-b-2 border-[var(--color-border)]">
-                                            <span className="text-xs font-bold uppercase opacity-60">Portfolio Value</span>
-                                            <span className="font-mono font-black text-lg">₹{myPortfolioValue.toLocaleString("en-IN")}</span>
+                            {/* Content Area */}
+                            <div className="flex-1 overflow-hidden flex flex-col min-h-0 p-4">
+                                {activeFabOption === "map" ? (
+                                    <div className="relative flex-1 min-h-[300px] sm:min-h-[400px] h-[50vh] bg-[var(--color-surface)] flex flex-col">
+                                        <div 
+                                            className="flex-1 cursor-zoom-in flex items-center justify-center overflow-hidden"
+                                            onClick={() => {
+                                                setIsFullScreen(true);
+                                                setScale(1);
+                                            }}
+                                        >
+                                            <div className="w-full h-full p-2 sm:p-4 flex items-center justify-center">
+                                                <CityMap currentPlotNumber={currentPlot?.number} plots={plots} allTeams={allTeams} currentRound={currentRound} />
+                                            </div>
                                         </div>
+                                        <div className="bg-[var(--color-bg)] px-2 py-1 text-xs font-bold uppercase border-t-2 border-[var(--color-border)] text-center">
+                                            Click to Zoom
+                                        </div>
+                                    </div>
+                                ) : activeFabOption === "my" ? (
+                                    <>
                                         {myPlots.length === 0 ? (
                                             <div className="text-center py-10 text-[var(--color-text)] opacity-40 font-bold uppercase border-2 border-dashed border-[var(--color-border)] opacity-30 m-4">
                                                 You don&apos;t own any plots yet.
@@ -359,13 +357,8 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                                             <NeoTable columns={myPlotsColumns} data={myPlots} />
                                         )}
                                     </>
-                                ) : activeTab === "listed" ? (
+                                ) : activeFabOption === "listed" ? (
                                     <>
-                                        {/* Listed plots summary bar */}
-                                        <div className="flex justify-between items-center px-4 py-2 bg-[var(--color-surface)] border-b-2 border-[var(--color-border)]">
-                                            <span className="text-xs font-bold uppercase opacity-60">Listed for Sale</span>
-                                            <span className="font-mono font-black text-lg text-[var(--color-primary)]">{myListedPlots.length} Plots</span>
-                                        </div>
                                         {myListedPlots.length === 0 ? (
                                             <div className="text-center py-10 text-[var(--color-text)] opacity-40 font-bold uppercase border-2 border-dashed border-[var(--color-border)] opacity-30 m-4">
                                                 No plots listed for sale.
@@ -374,15 +367,8 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                                             <NeoTable columns={listedPlotsColumns} data={myListedPlots} />
                                         )}
                                     </>
-                                ) : activeTab === "sold" ? (
+                                ) : activeFabOption === "sold" ? (
                                     <>
-                                        {/* Sold via rebid summary bar */}
-                                        <div className="flex justify-between items-center px-4 py-2 bg-[var(--color-surface)] border-b-2 border-[var(--color-border)]">
-                                            <span className="text-xs font-bold uppercase opacity-60">Total Profit from Sales</span>
-                                            <span className="font-mono font-black text-lg text-green-600">
-                                                ₹{mySoldPlots.reduce((sum, p) => sum + p.profit, 0).toLocaleString("en-IN")}
-                                            </span>
-                                        </div>
                                         {mySoldPlots.length === 0 ? (
                                             <div className="text-center py-10 text-[var(--color-text)] opacity-40 font-bold uppercase border-2 border-dashed border-[var(--color-border)] opacity-30 m-4">
                                                 No plots sold yet.
@@ -391,12 +377,8 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                                             <NeoTable columns={soldRebidColumns} data={mySoldPlots} />
                                         )}
                                     </>
-                                ) : (
+                                ) : activeFabOption === "all" ? (
                                     <>
-                                        <div className="flex justify-between items-center px-4 py-2 bg-[var(--color-surface)] border-b-2 border-[var(--color-border)]">
-                                            <span className="text-xs font-bold uppercase opacity-60">Total Revenue</span>
-                                            <span className="font-mono font-black text-lg">₹{totalRevenue.toLocaleString("en-IN")}</span>
-                                        </div>
                                         {soldPlots.length === 0 ? (
                                             <div className="text-center py-10 text-[var(--color-text)] opacity-40 font-bold uppercase border-2 border-dashed border-[var(--color-border)] opacity-30 m-4">
                                                 No plots sold yet.
@@ -405,7 +387,7 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                                             <NeoTable columns={trackingColumns} data={soldPlots} />
                                         )}
                                     </>
-                                )}
+                                ) : null}
                             </div>
                         </motion.div>
                     </div>
