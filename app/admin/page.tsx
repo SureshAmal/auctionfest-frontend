@@ -833,7 +833,7 @@ export default function AdminPage() {
                             <div className="flex-1 min-h-0 overflow-auto">
                                 {(() => {
                                     const tableColumns: ColumnDef<Plot>[] = [
-                                        { accessorKey: "number", header: "#", cell: ({ row }) => <span className="font-bold bg-[var(--color-bg)] text-sm">{row.original.number}</span> },
+                                        { accessorKey: "number", header: "#", cell: ({ row }) => <span className="font-bold text-sm">{row.original.number}</span> },
                                         { accessorKey: "plot_type", header: "Type", cell: ({ row }) => <span className="text-xs font-bold uppercase">{row.original.plot_type || "-"}</span> },
                                         {
                                             accessorKey: "total_plot_price",
@@ -871,6 +871,8 @@ export default function AdminPage() {
                                         <NeoTable
                                             columns={tableColumns}
                                             data={plots}
+                                            highlightKey="number"
+                                            highlightValue={auctionState?.current_plot_number}
                                         />
                                     );
                                 })()}

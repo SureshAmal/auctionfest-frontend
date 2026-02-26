@@ -14,9 +14,11 @@ interface NeoTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[];
     data: TData[];
     onRowClick?: (row: TData) => void;
+    highlightKey?: keyof TData;
+    highlightValue?: any;
 }
 
-export default function NeoTable<TData, TValue>({ columns, data, onRowClick }: NeoTableProps<TData, TValue>) {
+export default function NeoTable<TData, TValue>({ columns, data, onRowClick, highlightKey, highlightValue }: NeoTableProps<TData, TValue>) {
     const [sorting, setSorting] = React.useState<SortingState>([]);
 
     const table = useReactTable({
@@ -70,27 +72,30 @@ export default function NeoTable<TData, TValue>({ columns, data, onRowClick }: N
                 </thead>
                 <tbody className="bg-[var(--color-bg)] [&>tr>td]:border-b-4 [&>tr>td]:border-r-4 [&>tr>td]:border-[var(--color-border)] [&>tr>td:last-child]:border-r-0 relative z-0">
                     {table.getRowModel().rows?.length ? (
-                        table.getRowModel().rows.map((row, rowIndex) => (
-                            <tr
-                                key={row.id}
-                                onClick={() => onRowClick && onRowClick(row.original)}
-                                className={`hover:brightness-95 odd:bg-[var(--color-bg)] even:bg-[var(--color-bg)] font-bold text-sm ${onRowClick ? "cursor-pointer" : ""}`}
-                            >
-                                {row.getVisibleCells().map((cell, cellIndex) => {
-                                    const isLastCell = cellIndex === row.getVisibleCells().length - 1;
-                                    const isLastRow = rowIndex === table.getRowModel().rows.length - 1;
-                                    
-                                    return (
-                                        <td 
-                                            key={cell.id} 
-                                            className={`py-2 px-3 truncate border-b-4 border-r-4 border-[var(--color-border)] ${isLastCell ? "border-r-0" : ""} ${isLastRow ? "border-b-0" : ""}`}
-                                        >
-                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                        </td>
-                                    );
-                                })}
-                            </tr>
-                        ))
+                        table.getRowModel().rows.map((row, rowIndex) => {
+                            const isHighlighted = highlightKey && highlightValue && row.original[highlightKey] === highlightValue;
+                            return (
+                                <tr
+                                    key={row.id}
+                                    onClick={() => onRowClick && onRowClick(row.original)}
+                                    className={`hover:brightness-95 font-bold text-sm ${onRowClick ? "cursor-pointer" : ""} ${isHighlighted ? "bg-[var(--color-primary)]/10 ring-2 ring-[var(--color-primary)] ring-inset" : ""}`}
+                                >
+                                    {row.getVisibleCells().map((cell, cellIndex) => {
+                                        const isLastCell = cellIndex === row.getVisibleCells().length - 1;
+                                        const isLastRow = rowIndex === table.getRowModel().rows.length - 1;
+                                        
+                                        return (
+                                            <td 
+                                                key={cell.id} 
+                                                className={`py-2 px-3 truncate border-b-4 border-r-4 border-[var(--color-border)] ${isLastCell ? "border-r-0" : ""} ${isLastRow ? "border-b-0" : ""}`}
+                                            >
+                                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                            );
+                        })
                     ) : (
                         <tr>
                             <td colSpan={columns.length} className="h-24 text-center font-bold uppercase opacity-50 border-r-4 border-[var(--color-border)] last:border-r-0">
