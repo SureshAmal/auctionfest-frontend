@@ -66,13 +66,8 @@ export default function BidCard({ currentPlot, userTeam, allTeams = [], currentR
         }
 
         const amount = parseInt(bidAmount);
-        if (isNaN(amount) || amount <= 0) {
-            setError("Please enter a valid amount");
-            return;
-        }
-
-        if (currentPlot.current_bid && amount <= currentPlot.current_bid) {
-            setError(`Bid must be higher than ₹${currentPlot.current_bid}`);
+        if (isNaN(amount) || amount < minBid) {
+            setError(`Minimum bid amount is ₹${minBid.toLocaleString("en-IN")}`);
             return;
         }
 

@@ -118,6 +118,9 @@ export default function Dashboard() {
     // Track adjustments from the CURRENT policy only: { plotNumber: deltaAmount }
     const [recentAdjustments, setRecentAdjustments] = useState<Record<number, number>>({});
 
+    // Live Tracker modal state
+    const [trackerOpen, setTrackerOpen] = useState(false);
+
     // 1. Check Auth & Load Initial Data
     useEffect(() => {
         const teamId = localStorage.getItem("team_id");
@@ -514,8 +517,17 @@ export default function Dashboard() {
 
                         <div className="flex items-center gap-2 neo-border border-[var(--color-primary)] px-3 py-2 bg-[var(--color-primary)] text-[var(--color-bg)] shadow-[4px_4px_0_var(--neo-shadow-color)]">
                             <span className="font-black text-xl bg-[var(--color-bg)] text-[var(--color-primary)] w-8 h-8 flex items-center justify-center">{userTeam.name.charAt(0)}</span>
-                            <span className="font-black text-sm uppercase">{userTeam.name}</span>
+                            <span className="font-black text-sm uppercase hidden sm:inline">{userTeam.name}</span>
                         </div>
+
+                        {/* Mobile: My Plots Button */}
+                        <button
+                            onClick={() => setTrackerOpen(true)}
+                            className="lg:hidden p-3 bg-[var(--color-success)] text-[var(--color-bg)] border-4 border-[var(--color-border)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none shadow-[4px_4px_0_var(--neo-shadow-color)] transition-all"
+                            title="My Portfolio"
+                        >
+                            <Activity size={20} strokeWidth={3} />
+                        </button>
 
                         <button
                             onClick={() => {
@@ -771,7 +783,7 @@ export default function Dashboard() {
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 flex-1 lg:min-h-0 lg:overflow-hidden">
 
                         {/* LEFT: Plot Image */}
-                        <div className="lg:col-span-5 min-h-[200px] sm:min-h-[350px] lg:min-h-0 lg:overflow-hidden flex flex-col">
+                        <div className="lg:col-span-5 min-h-[300px] sm:min-h-[350px] lg:min-h-0 lg:overflow-hidden flex flex-col">
                             <NeoCard className="p-0 flex-1 overflow-hidden relative bg-[var(--color-bg)]">
                                 <div className="absolute top-3 left-3 z-10">
                                     <NeoBadge variant="neutral">
@@ -950,7 +962,18 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                <TrackingWindow currentPlot={currentPlot} status={auctionStatus} plots={plots} allTeams={allTeams} userTeam={userTeam} currentRound={currentRound} rebidOffers={rebidOffers} rebidOffersSold={rebidOffersSold} />
+                <TrackingWindow 
+                    currentPlot={currentPlot} 
+                    status={auctionStatus} 
+                    plots={plots} 
+                    allTeams={allTeams} 
+                    userTeam={userTeam} 
+                    currentRound={currentRound} 
+                    rebidOffers={rebidOffers} 
+                    rebidOffersSold={rebidOffersSold}
+                    forceOpen={trackerOpen}
+                    onClose={() => setTrackerOpen(false)}
+                />
             </div>
         </NeoLayout>
     );

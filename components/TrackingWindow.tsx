@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Activity, X, Gavel, DollarSign, MapPin, Tag, ShoppingCart } from "lucide-react";
 import NeoBadge from "./neo/NeoBadge";
@@ -19,14 +19,30 @@ interface TrackingWindowProps {
     rebidOffers?: any[];
     /** Sold offers (from rebid marketplace) */
     rebidOffersSold?: any[];
+    /** Force open the tracker modal */
+    forceOpen?: boolean;
+    /** Callback when tracker should close */
+    onClose?: () => void;
 }
 
-export default function TrackingWindow({ currentPlot, status, plots = [], allTeams = [], userTeam, currentRound = 1, rebidOffers = [], rebidOffersSold = [] }: TrackingWindowProps) {
+export default function TrackingWindow({ currentPlot, status, plots = [], allTeams = [], userTeam, currentRound = 1, rebidOffers = [], rebidOffersSold = [], forceOpen = false, onClose }: TrackingWindowProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [scale, setScale] = useState(1);
     const [activeTab, setActiveTab] = useState<"my" | "listed" | "sold" | "all">("my");
     const containerRef = useRef(null);
+
+    // Sync with forceOpen prop
+    useEffect(() => {
+        if (forceOpen) {
+            setIsOpen(true);
+        }
+    }, [forceOpen]);
+
+    const handleClose = () => {
+        setIsOpen(false);
+        onClose?.();
+    };
 
     // Track drag state to prevent click-on-drag
     const isDragging = useRef(false);
@@ -43,6 +59,15 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
         }
         isDragging.current = false;
     }, []);
+
+    // Handle close from X button in modal
+    const handleModalClose = () => {
+        setIsOpen(false);
+    };
+
+    // Also export setIsOpen so parent can control it
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const setOpen = (open: boolean) => setIsOpen(open);
 
     // Calculate Sold Plots Ledger
     const soldPlots = useMemo(() => {
@@ -212,31 +237,32 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                 whileTap={{ scale: 0.98 }}
                 onDragStart={handleDragStart}
                 onClick={handleClick}
-                className="fixed bottom-6 right-6 z-40 cursor-pointer"
+                className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 cursor-pointer"
                 style={{ borderRadius: "var(--neo-radius)" }}
             >
                 {/* Mini Dashboard Style Floating Tracker */}
-                <div className="bg-[var(--color-bg)] border-[length:var(--neo-border-width)] border-[var(--color-border)] shadow-[var(--neo-shadow-offset-x)_var(--neo-shadow-offset-y)_0_var(--neo-shadow-color)] flex flex-col w-72 overflow-hidden" style={{ borderRadius: "var(--neo-radius)" }}>
+                <div className="bg-[var(--color-bg)] border-[length:var(--neo-border-width)] border-[var(--color-border)] shadow-[var(--neo-shadow-offset-x)_var(--neo-shadow-offset-y)_0_var(--neo-shadow-color)] flex flex-col w-56 sm:w-72 overflow-hidden" style={{ borderRadius: "var(--neo-radius)" }}>
                     {/* Header */}
                     <div className="bg-[var(--color-primary)] text-[var(--color-bg)] p-2 px-3 flex justify-between items-center border-b-[length:var(--neo-border-width)] border-[var(--color-border)]">
-                        <span className="font-black uppercase text-sm flex items-center gap-2">
-                            <Activity size={16} className={status === "RUNNING" ? "animate-pulse" : ""} />
-                            Live Tracker
+                        <span className="font-black uppercase text-xs sm:text-sm flex items-center gap-2">
+                            <Activity size={14} className={status === "RUNNING" ? "animate-pulse" : ""} />
+                            <span className="hidden sm:inline">Live Tracker</span>
+                            <span className="sm:hidden">Tracker</span>
                         </span>
                         <span className="text-[10px] font-bold uppercase bg-[var(--color-bg)] text-[var(--color-text)] px-2 py-0.5 border-2 border-[var(--color-border)]" style={{ borderRadius: "calc(var(--neo-radius) / 2)" }}>
                             {status}
                         </span>
                     </div>
                     {/* Stats Body */}
-                    <div className="p-3 bg-[var(--color-surface)] text-[var(--color-text)] flex justify-between items-center">
+                    <div className="p-2 sm:p-3 bg-[var(--color-surface)] text-[var(--color-text)] flex justify-between items-center">
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-bold uppercase opacity-60">Plots Sold</span>
-                            <span className="font-black text-xl">{soldPlots.length}</span>
+                            <span className="text-[8px] sm:text-[10px] font-bold uppercase opacity-60">Plots Sold</span>
+                            <span className="font-black text-lg sm:text-xl">{soldPlots.length}</span>
                         </div>
-                        <div className="w-[1px] h-8 bg-[var(--color-border)] opacity-20"></div>
+                        <div className="w-[1px] h-6 sm:h-8 bg-[var(--color-border)] opacity-20"></div>
                         <div className="flex flex-col items-end">
-                            <span className="text-[10px] font-bold uppercase opacity-60">Total Revenue</span>
-                            <span className="font-black text-xl text-[var(--color-success)] truncate max-w-[120px]">
+                            <span className="text-[8px] sm:text-[10px] font-bold uppercase opacity-60">Total Revenue</span>
+                            <span className="font-black text-lg sm:text-xl text-[var(--color-success)] truncate max-w-[80px] sm:max-w-[120px]">
                                 ₹{(totalRevenue / 10000000).toFixed(2)}Cr
                             </span>
                         </div>
@@ -253,7 +279,7 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            onClick={() => setIsOpen(false)}
+                            onClick={handleModalClose}
                             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                         />
 
