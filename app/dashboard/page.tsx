@@ -109,6 +109,7 @@ export default function Dashboard() {
     // Rebid Market State
     const [rebidPhaseActive, setRebidPhaseActive] = useState(false);
     const [rebidOffers, setRebidOffers] = useState<any[]>([]);
+    const [rebidOffersSold, setRebidOffersSold] = useState<any[]>([]);
     const [markupInput, setMarkupInput] = useState<Record<number, string>>({});
 
     // Round 4 phase: 'sell' | 'bid' | null
@@ -176,6 +177,9 @@ export default function Dashboard() {
 
                 const offersRes = await fetch(`/api/data/rebid-offers?t=${t}`, { cache: "no-store" });
                 if (offersRes.ok) setRebidOffers(await offersRes.json());
+
+                const soldOffersRes = await fetch(`/api/data/rebid-offers-sold?t=${t}`, { cache: "no-store" });
+                if (soldOffersRes.ok) setRebidOffersSold(await soldOffersRes.json());
 
             } catch (e) {
                 console.error("Failed to load initial data", e);
@@ -383,7 +387,9 @@ export default function Dashboard() {
             setRebidOffers(prev => [offer, ...prev]);
         });
         socket.on("rebid_offer_sold", (offer: any) => {
-            setRebidOffers(prev => prev.map(o => o.id === offer.id ? offer : o));
+            // Remove from active offers and add to sold offers
+            setRebidOffers(prev => prev.filter(o => o.id !== offer.id));
+            setRebidOffersSold(prev => [offer, ...prev]);
         });
 
         // Round 4 phase listener
@@ -695,6 +701,7 @@ export default function Dashboard() {
                                                                         })
                                                                     });
                                                                     if (!res.ok) alert((await res.json()).detail);
+                                                                    else setMarkupInput(prev => ({ ...prev, [plot.number]: Math.floor(basePrice).toString() }));
                                                                 } catch (e) { console.error(e); }
                                                             }}
                                                         >
@@ -705,12 +712,15 @@ export default function Dashboard() {
                                                     <div className="flex flex-col gap-1">
                                                         <div className="flex gap-2">
                                                             <input
-                                                                type="number"
-                                                                placeholder={`₹${Math.floor(basePrice)} - ₹${Math.floor(maxAllowed)}`}
+                                                                type="text"
+                                                                inputMode="numeric"
+                                                                placeholder={`₹${Math.floor(basePrice).toLocaleString("en-IN")}`}
                                                                 className="neo-input flex-1 text-sm py-1 px-2 min-w-0 bg-[var(--color-bg)]"
-                                                                value={markupInput[plot.number] ?? ""}
-                                                                onChange={(e) => setMarkupInput(prev => ({ ...prev, [plot.number]: e.target.value }))}
-                                                                max={maxAllowed}
+                                                                value={markupInput[plot.number] ? parseInt(markupInput[plot.number])?.toLocaleString("en-IN") : Math.floor(basePrice).toLocaleString("en-IN")}
+                                                                onChange={(e) => {
+                                                                    const raw = e.target.value.replace(/,/g, "").replace(/[^0-9]/g, "");
+                                                                    setMarkupInput(prev => ({ ...prev, [plot.number]: raw }));
+                                                                }}
                                                             />
                                                             <NeoButton
                                                                 variant="primary"
@@ -940,7 +950,7 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                <TrackingWindow currentPlot={currentPlot} status={auctionStatus} plots={plots} allTeams={allTeams} userTeam={userTeam} currentRound={currentRound} />
+                <TrackingWindow currentPlot={currentPlot} status={auctionStatus} plots={plots} allTeams={allTeams} userTeam={userTeam} currentRound={currentRound} rebidOffers={rebidOffers} rebidOffersSold={rebidOffersSold} />
             </div>
         </NeoLayout>
     );

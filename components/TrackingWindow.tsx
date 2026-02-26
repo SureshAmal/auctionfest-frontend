@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Activity, X, Gavel, DollarSign, MapPin } from "lucide-react";
+import { Activity, X, Gavel, DollarSign, MapPin, Tag, ShoppingCart } from "lucide-react";
 import NeoBadge from "./neo/NeoBadge";
 import NeoButton from "./neo/NeoButton";
 import CityMap from "@/components/map/CityMap";
@@ -15,13 +15,17 @@ interface TrackingWindowProps {
     userTeam?: any;
     /** The current auction round (determines which city SVG to use). */
     currentRound?: number;
+    /** Active rebid/sell offers */
+    rebidOffers?: any[];
+    /** Sold offers (from rebid marketplace) */
+    rebidOffersSold?: any[];
 }
 
-export default function TrackingWindow({ currentPlot, status, plots = [], allTeams = [], userTeam, currentRound = 1 }: TrackingWindowProps) {
+export default function TrackingWindow({ currentPlot, status, plots = [], allTeams = [], userTeam, currentRound = 1, rebidOffers = [], rebidOffersSold = [] }: TrackingWindowProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [scale, setScale] = useState(1);
-    const [activeTab, setActiveTab] = useState<"my" | "all">("my");
+    const [activeTab, setActiveTab] = useState<"my" | "listed" | "sold" | "all">("my");
     const containerRef = useRef(null);
 
     // Track drag state to prevent click-on-drag
@@ -64,6 +68,42 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
             return plot && plot.winner_team_id === userTeam.id;
         });
     }, [soldPlots, plots, userTeam]);
+
+    // My team's plots listed for sale (active offers)
+    const myListedPlots = useMemo(() => {
+        if (!userTeam) return [];
+        return rebidOffers
+            .filter(o => o.offering_team_id === userTeam.id || o.offering_team_id === userTeam.id?.toString())
+            .map(offer => {
+                const plot = plots.find(p => p.number === offer.plot_number);
+                const originalPrice = plot ? (Number(plot.current_bid) || Number(plot.total_plot_price) || 0) : 0;
+                return {
+                    plotNumber: offer.plot_number,
+                    askingPrice: Number(offer.asking_price),
+                    originalPrice,
+                    status: offer.status
+                };
+            });
+    }, [rebidOffers, userTeam, plots]);
+
+    // My team's plots sold via rebid marketplace
+    const mySoldPlots = useMemo(() => {
+        if (!userTeam) return [];
+        return rebidOffersSold
+            .filter(o => o.offering_team_id === userTeam.id || o.offering_team_id === userTeam.id?.toString())
+            .map(offer => {
+                const plot = plots.find(p => p.number === offer.plot_number);
+                const originalPrice = plot ? (Number(plot.current_bid) || Number(plot.total_plot_price) || 0) : 0;
+                const buyer = allTeams.find(t => t.id === offer.buyer_team_id || t.id === offer.buyer_team_id?.toString());
+                return {
+                    plotNumber: offer.plot_number,
+                    soldPrice: Number(offer.asking_price),
+                    buyerName: buyer?.name || offer.buyer_name || "Unknown",
+                    originalPrice,
+                    profit: Number(offer.asking_price) - originalPrice
+                };
+            });
+    }, [rebidOffersSold, userTeam, plots, allTeams]);
 
     const totalRevenue = soldPlots.reduce((sum, p) => sum + p.price, 0);
     const myPortfolioValue = myPlots.reduce((sum, p) => sum + p.currentValue, 0);
@@ -114,6 +154,51 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
             accessorKey: "currentValue",
             header: () => <div className="text-center">Value</div>,
             cell: ({ row }) => <div className="text-right font-mono font-black w-full pr-2">₹{row.original.currentValue.toLocaleString("en-IN")}</div>
+        }
+    ];
+
+    // Columns for plots listed for sale
+    const listedPlotsColumns: ColumnDef<any>[] = [
+        {
+            accessorKey: "plotNumber",
+            header: "Plot #",
+            cell: ({ row }) => <div className="font-black text-center">#{row.original.plotNumber}</div>
+        },
+        {
+            accessorKey: "askingPrice",
+            header: () => <div className="text-center">Listed At</div>,
+            cell: ({ row }) => <div className="text-right font-mono font-bold w-full pr-2 text-[var(--color-primary)]">₹{row.original.askingPrice.toLocaleString("en-IN")}</div>
+        }
+    ];
+
+    // Columns for plots sold via rebid
+    const soldRebidColumns: ColumnDef<any>[] = [
+        {
+            accessorKey: "plotNumber",
+            header: "Plot #",
+            cell: ({ row }) => <div className="font-black text-center">#{row.original.plotNumber}</div>
+        },
+        {
+            accessorKey: "buyerName",
+            header: () => <div className="text-center">Sold To</div>,
+            cell: ({ row }) => <div className="text-[var(--color-primary)] truncate max-w-[80px] text-center w-full font-bold">{row.original.buyerName}</div>
+        },
+        {
+            accessorKey: "soldPrice",
+            header: () => <div className="text-center">Sold</div>,
+            cell: ({ row }) => <div className="text-right font-mono font-bold w-full pr-2">₹{row.original.soldPrice.toLocaleString("en-IN")}</div>
+        },
+        {
+            accessorKey: "profit",
+            header: () => <div className="text-center">Profit</div>,
+            cell: ({ row }) => {
+                const profit = row.original.profit;
+                return (
+                    <div className={`text-right font-mono font-black w-full pr-2 ${profit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {profit >= 0 ? "+" : ""}₹{profit.toLocaleString("en-IN")}
+                    </div>
+                );
+            }
         }
     ];
 
@@ -204,16 +289,28 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                             </div>
 
                             {/* 2. Tab Header */}
-                            <div className="flex items-center border-b-4 border-[var(--color-border)] bg-[var(--color-surface)]">
+                            <div className="flex flex-wrap items-center border-b-4 border-[var(--color-border)] bg-[var(--color-surface)]">
                                 <button
                                     onClick={() => setActiveTab("my")}
-                                    className={`flex-1 py-3 px-4 text-sm font-black uppercase flex items-center justify-center gap-2 transition-all border-b-4 -mb-[4px] ${activeTab === "my" ? "border-[var(--color-primary)] bg-[var(--color-bg)] text-[var(--color-primary)]" : "border-transparent hover:bg-[var(--color-bg)]/50 opacity-60"}`}
+                                    className={`py-3 px-4 text-sm font-black uppercase flex items-center justify-center gap-2 transition-all border-b-4 -mb-[4px] ${activeTab === "my" ? "border-[var(--color-primary)] bg-[var(--color-bg)] text-[var(--color-primary)]" : "border-transparent hover:bg-[var(--color-bg)]/50 opacity-60"}`}
                                 >
                                     <MapPin size={16} /> My Plots ({myPlots.length})
                                 </button>
                                 <button
+                                    onClick={() => setActiveTab("listed")}
+                                    className={`py-3 px-4 text-sm font-black uppercase flex items-center justify-center gap-2 transition-all border-b-4 -mb-[4px] ${activeTab === "listed" ? "border-[var(--color-primary)] bg-[var(--color-bg)] text-[var(--color-primary)]" : "border-transparent hover:bg-[var(--color-bg)]/50 opacity-60"}`}
+                                >
+                                    <Tag size={16} /> Listed ({myListedPlots.length})
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab("sold")}
+                                    className={`py-3 px-4 text-sm font-black uppercase flex items-center justify-center gap-2 transition-all border-b-4 -mb-[4px] ${activeTab === "sold" ? "border-[var(--color-primary)] bg-[var(--color-bg)] text-[var(--color-primary)]" : "border-transparent hover:bg-[var(--color-bg)]/50 opacity-60"}`}
+                                >
+                                    <ShoppingCart size={16} /> Sold ({mySoldPlots.length})
+                                </button>
+                                <button
                                     onClick={() => setActiveTab("all")}
-                                    className={`flex-1 py-3 px-4 text-sm font-black uppercase flex items-center justify-center gap-2 transition-all border-b-4 -mb-[4px] ${activeTab === "all" ? "border-[var(--color-primary)] bg-[var(--color-bg)] text-[var(--color-primary)]" : "border-transparent hover:bg-[var(--color-bg)]/50 opacity-60"}`}
+                                    className={`py-3 px-4 text-sm font-black uppercase flex items-center justify-center gap-2 transition-all border-b-4 -mb-[4px] ${activeTab === "all" ? "border-[var(--color-primary)] bg-[var(--color-bg)] text-[var(--color-primary)]" : "border-transparent hover:bg-[var(--color-bg)]/50 opacity-60"}`}
                                 >
                                     <Gavel size={16} /> All Sold ({soldPlots.length})
                                 </button>
@@ -234,6 +331,38 @@ export default function TrackingWindow({ currentPlot, status, plots = [], allTea
                                             </div>
                                         ) : (
                                             <NeoTable columns={myPlotsColumns} data={myPlots} />
+                                        )}
+                                    </>
+                                ) : activeTab === "listed" ? (
+                                    <>
+                                        {/* Listed plots summary bar */}
+                                        <div className="flex justify-between items-center px-4 py-2 bg-[var(--color-surface)] border-b-2 border-[var(--color-border)]">
+                                            <span className="text-xs font-bold uppercase opacity-60">Listed for Sale</span>
+                                            <span className="font-mono font-black text-lg text-[var(--color-primary)]">{myListedPlots.length} Plots</span>
+                                        </div>
+                                        {myListedPlots.length === 0 ? (
+                                            <div className="text-center py-10 text-[var(--color-text)] opacity-40 font-bold uppercase border-2 border-dashed border-[var(--color-border)] opacity-30 m-4">
+                                                No plots listed for sale.
+                                            </div>
+                                        ) : (
+                                            <NeoTable columns={listedPlotsColumns} data={myListedPlots} />
+                                        )}
+                                    </>
+                                ) : activeTab === "sold" ? (
+                                    <>
+                                        {/* Sold via rebid summary bar */}
+                                        <div className="flex justify-between items-center px-4 py-2 bg-[var(--color-surface)] border-b-2 border-[var(--color-border)]">
+                                            <span className="text-xs font-bold uppercase opacity-60">Total Profit from Sales</span>
+                                            <span className="font-mono font-black text-lg text-green-600">
+                                                ₹{mySoldPlots.reduce((sum, p) => sum + p.profit, 0).toLocaleString("en-IN")}
+                                            </span>
+                                        </div>
+                                        {mySoldPlots.length === 0 ? (
+                                            <div className="text-center py-10 text-[var(--color-text)] opacity-40 font-bold uppercase border-2 border-dashed border-[var(--color-border)] opacity-30 m-4">
+                                                No plots sold yet.
+                                            </div>
+                                        ) : (
+                                            <NeoTable columns={soldRebidColumns} data={mySoldPlots} />
                                         )}
                                     </>
                                 ) : (
