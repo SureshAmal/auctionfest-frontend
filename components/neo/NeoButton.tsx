@@ -35,14 +35,15 @@ export default function NeoButton({
     return (
         <motion.button
             whileHover={{
-                x: -2,
-                y: -2,
-                boxShadow: "8px 8px 0 var(--neo-shadow-color)"
+                x: 2,
+                y: 2,
+                boxShadow: "2px 2px 0 var(--neo-shadow-color)"
             }}
             whileTap={{
                 x: 4,
                 y: 4,
-                boxShadow: "0px 0px 0 var(--neo-shadow-color)"
+                boxShadow: "0px 0px 0 var(--neo-shadow-color)",
+                transition: { duration: 0.1 }
             }}
             initial={{ boxShadow: "var(--neo-shadow-offset-x) var(--neo-shadow-offset-y) 0 var(--neo-shadow-color)" }}
             style={{ borderRadius: "var(--neo-radius)", overflow: "hidden" }}

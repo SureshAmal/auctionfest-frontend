@@ -19,7 +19,7 @@ export default function NeoBadge({ variant = "neutral", children, className = ""
 
     return (
         <span
-            className={`inline-block px-2 py-1 text-xs font-bold uppercase border-2 border-[var(--color-border)] ${variants[variant]} ${className}`}
+            className={`inline-flex items-center justify-center px-2 py-1 text-xs font-bold uppercase border-2 border-[var(--color-border)] ${variants[variant]} ${className}`}
             style={{ borderRadius: "var(--neo-radius)" }}
         >
             {children}

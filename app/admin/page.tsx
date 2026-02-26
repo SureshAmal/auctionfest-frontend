@@ -485,37 +485,37 @@ export default function AdminPage() {
                         </h1>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 md:gap-4 items-center min-h-[3rem] md:min-h-0">
-                        <div className="flex items-center gap-1 md:gap-2 neo-border px-2 md:px-4 py-1 md:h-full bg-[var(--color-bg)]">
+                    <div className="flex flex-wrap gap-2 md:gap-4 items-stretch min-h-[3rem] md:min-h-[3rem]">
+                        <div className="flex items-center gap-1 md:gap-2 neo-border px-2 md:px-4 min-h-[3rem] min-w-[80px] md:min-w-[100px] bg-[var(--color-bg)]">
                             <Users size={20} className="text-[var(--color-secondary)] hidden md:block" />
                             <Users size={16} className="text-[var(--color-secondary)] md:hidden" />
                             <span className="font-black text-lg md:text-xl">{connectedCount}</span>
                             <span className="hidden md:inline font-bold uppercase text-sm">Online</span>
                         </div>
 
-                        <NeoBadge variant={isRunning ? "success" : isPaused ? "neutral" : isCompleted ? "danger" : "neutral"} className="py-1 md:py-0 px-2 md:px-6">
+                        <NeoBadge variant={isRunning ? "success" : isPaused ? "neutral" : isCompleted ? "danger" : "neutral"} className="min-h-[3rem] min-w-[80px] md:min-w-[100px] flex items-center justify-center px-2 md:px-6">
                             {status.replace("_", " ")}
                         </NeoBadge>
 
-                        <div className="neo-border px-2 md:px-4 py-1 md:py-0 flex flex-col justify-center items-center bg-[var(--color-surface)]">
+                        <div className="neo-border px-2 md:px-4 min-h-[3rem] min-w-[60px] md:min-w-[80px] flex flex-col justify-center items-center bg-[var(--color-surface)]">
                             <div className="flex flex-col items-center justify-center leading-none">
                                 <span className="font-bold uppercase text-[8px] md:text-[10px] opacity-70">Plot</span>
                                 <span className="font-black text-lg md:text-xl">#{auctionState?.current_plot_number || "-"}</span>
                             </div>
                         </div>
 
-                        <div className="neo-border px-2 md:px-4 py-1 md:py-0 flex flex-col justify-center items-center bg-[var(--color-surface)]">
+                        <div className="neo-border px-2 md:px-4 min-h-[3rem] min-w-[60px] md:min-w-[80px] flex flex-col justify-center items-center bg-[var(--color-surface)]">
                             <div className="flex flex-col items-center justify-center leading-none">
                                 <span className="font-bold uppercase text-[8px] md:text-[10px] opacity-70">Round</span>
                                 <span className="font-black text-lg md:text-xl">{currentRound}</span>
                             </div>
                         </div>
 
-                        <ThemeChanger className="h-auto md:h-full" />
+                        <ThemeChanger className="min-h-[3rem]" />
 
                         <NeoButton
                             variant="danger"
-                            className="text-xs md:text-sm font-black py-1 md:py-0 px-2 md:px-6 flex items-center justify-center"
+                            className="text-xs md:text-sm font-black min-h-[3rem] min-w-[50px] md:min-w-[80px] px-2 md:px-6 flex items-center justify-center"
                             onClick={() => {
                                 localStorage.removeItem("admin_auth");
                                 setIsAdminAuth(false);
