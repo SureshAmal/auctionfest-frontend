@@ -565,21 +565,26 @@ export default function Dashboard() {
                                 FINAL <span className="text-[var(--color-primary)]">LEADERBOARD</span>
                             </h2>
                             <p className="text-center font-bold text-sm uppercase opacity-50 border-b-4 border-dashed border-[var(--color-border)] pb-4 mb-6">
-                                Ranked by Total Net Worth (Remaining Cash + Plot Valuation)
+                                Ranked by Final Score (Net Worth + Plot Bonus)
                             </p>
                             <div className="flex-1 overflow-y-auto pr-2 space-y-4">
                                 {allTeams.map(t => {
                                     const remainingBudget = Number(t.budget) - Number(t.spent || 0);
                                     const teamPlots = plots.filter(p => p.winner_team_id === t.id && p.status === 'sold');
                                     const propertyValue = teamPlots.reduce((sum, p) => sum + ((Number(p.current_bid) || Number(p.total_plot_price) || 0) + Number(p.round_adjustment || 0)), 0);
+                                    const plotsWon = teamPlots.length;
+                                    const netWorth = remainingBudget + propertyValue;
+                                    // Final Score = Net Worth + (10 Lakhs bonus per plot)
+                                    const finalScore = netWorth + (plotsWon * 10000000);
                                     return {
                                         ...t,
                                         remainingBudget,
                                         propertyValue,
-                                        plotsWon: teamPlots.length,
-                                        netWorth: remainingBudget + propertyValue
+                                        plotsWon,
+                                        netWorth,
+                                        finalScore
                                     };
-                                }).sort((a, b) => b.netWorth - a.netWorth).map((team, index) => (
+                                }).sort((a, b) => b.finalScore - a.finalScore).map((team, index) => (
                                     <div
                                         key={team.id}
                                         className={`flex flex-col md:flex-row items-center gap-4 justify-between border-4 border-[var(--color-border)] p-4 transition-transform ${index === 0 ? 'bg-[var(--color-success)] text-[var(--color-bg)] shadow-[6px_6px_0_var(--neo-shadow-color)] scale-[1.02] -rotate-1 z-10' : 'bg-[var(--color-surface)] shadow-[4px_4px_0_var(--neo-shadow-color)]'}`}
@@ -594,8 +599,8 @@ export default function Dashboard() {
                                             </div>
                                         </div>
                                         <div className="flex flex-col items-center md:items-end w-full md:w-auto opacity-90 p-2 border-2 border-[var(--color-border)]/10">
-                                            <span className="text-xs font-bold uppercase opacity-80">Net Worth</span>
-                                            <span className="font-mono font-black text-2xl md:text-3xl">₹ {team.netWorth.toLocaleString("en-IN")}</span>
+                                            <span className="text-xs font-bold uppercase opacity-80">Final Score</span>
+                                            <span className="font-mono font-black text-2xl md:text-3xl">₹ {team.finalScore.toLocaleString("en-IN")}</span>
                                         </div>
                                     </div>
                                 ))}
@@ -656,17 +661,20 @@ export default function Dashboard() {
                                         const portfolioValue = plots
                                             .filter(p => p.winner_team_id === team.id && p.status === 'sold')
                                             .reduce((sum, p) => sum + (Number(p.current_bid || p.total_plot_price || 0) + Number(p.round_adjustment || 0)), 0);
-                                        return { ...team, remaining, portfolioValue, netWorth: remaining + portfolioValue };
-                                    }).sort((a, b) => b.netWorth - a.netWorth).map((team, idx) => {
+                                        const plotsWon = team.plots_won || 0;
+                                        const netWorth = remaining + portfolioValue;
+                                        const finalScore = netWorth + (plotsWon * 10000000);
+                                        return { ...team, remaining, portfolioValue, netWorth, plotsWon, finalScore };
+                                    }).sort((a, b) => b.finalScore - a.finalScore).map((team, idx) => {
                                         return (
                                             <div key={team.id} className="flex flex-col bg-[var(--color-surface)] p-2 neo-border">
                                                 <div className="flex justify-between items-center mb-1">
                                                     <span className="font-black text-sm uppercase">#{idx + 1} {team.name}</span>
-                                                    <span className="font-bold text-xs text-[var(--color-success)] tracking-wider">★ {team.plots_won} WON</span>
+                                                    <span className="font-bold text-xs text-[var(--color-success)] tracking-wider">★ {team.plotsWon} WON</span>
                                                 </div>
                                                 <div className="flex justify-between items-center pt-1 border-t-2 border-[var(--color-border)]">
-                                                    <span className="text-xs font-bold opacity-60 uppercase">Net Worth</span>
-                                                    <span className="font-mono text-sm font-black">₹{team.netWorth.toLocaleString("en-IN")}</span>
+                                                    <span className="text-xs font-bold opacity-60 uppercase">Score</span>
+                                                    <span className="font-mono text-sm font-black">₹{team.finalScore.toLocaleString("en-IN")}</span>
                                                 </div>
                                             </div>
                                         );

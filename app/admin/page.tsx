@@ -531,6 +531,24 @@ export default function AdminPage() {
                     {/* Left: Controls + Leaderboard + Connected */}
                     <div className="lg:col-span-1 flex flex-col gap-3 min-h-0 overflow-y-auto">
 
+                        {/* Connected Teams Card */}
+                        <NeoCard className="shrink-0 bg-[var(--color-bg)] mb-3">
+                            <h2 className="text-sm font-black uppercase mb-2 flex items-center gap-2">
+                                <Users size={16} /> Connected Teams ({connectedTeams.filter(t => t !== "Admin" && t !== "Leaderboard").length})
+                            </h2>
+                            <div className="flex flex-wrap gap-1 max-h-[120px] overflow-y-auto mb-2 pr-1 custom-scrollbar">
+                                {connectedTeams.filter(t => t !== "Admin" && t !== "Leaderboard").length > 0 ? (
+                                    connectedTeams.filter(t => t !== "Admin" && t !== "Leaderboard").map((team, idx) => (
+                                        <span key={idx} className="text-[10px] font-bold bg-[var(--color-surface)] neo-border px-2 py-0.5 tracking-tight flex-shrink-0">
+                                            {team}
+                                        </span>
+                                    ))
+                                ) : (
+                                    <span className="text-[10px] opacity-50 font-bold uppercase p-1">No online teams</span>
+                                )}
+                            </div>
+                        </NeoCard>
+
                         {/* Admin Controls Card */}
                         <NeoCard className="shrink-0 bg-[var(--color-bg)]">
                             <h2 className="text-sm font-black uppercase mb-2 flex items-center gap-2">

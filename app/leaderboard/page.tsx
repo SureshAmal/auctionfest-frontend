@@ -117,22 +117,28 @@ export default function LeaderboardPage() {
     }, [socket, isConnected]);
 
     // Calculate aggregated stats and net worth
+    // Final Score = Total Current Valuation + Remaining Money + (Plots Owned * 10 Lakhs bonus per plot)
+    const PLOT_BONUS = 10000000; // 10 Lakhs bonus per plot owned
     const leaderboardData = teams.map(t => {
         const remaining = Number(t.budget) - Number(t.spent || 0);
         const teamPlots = plots.filter(p => p.winner_team_id === t.id && p.status === 'sold');
         const propertyValue = teamPlots.reduce((sum, p) => sum + ((Number(p.current_bid) || Number(p.total_plot_price) || 0) + Number(p.round_adjustment || 0)), 0);
+        const plotsWon = teamPlots.length;
         const netWorth = remaining + propertyValue;
+        // Final Score includes: Property Value + Remaining Cash + Bonus for each plot owned
+        const finalScore = netWorth + (plotsWon * PLOT_BONUS);
 
         return {
             ...t,
             remaining,
             propertyValue,
-            plotsWon: teamPlots.length,
-            netWorth
+            plotsWon,
+            netWorth,
+            finalScore
         };
-    }).sort((a, b) => b.netWorth - a.netWorth);
+    }).sort((a, b) => b.finalScore - a.finalScore);
 
-    const maxNetWorth = Math.max(...leaderboardData.map(t => t.netWorth), 1);
+    const maxFinalScore = Math.max(...leaderboardData.map(t => t.finalScore), 1);
 
     return (
         <NeoLayout containerized={false} className="min-h-screen flex flex-col bg-[var(--color-bg)] text-[var(--color-text)]">
@@ -166,14 +172,15 @@ export default function LeaderboardPage() {
                 <div className="w-full mx-auto columns-1 lg:columns-2 2xl:columns-3 gap-6 lg:gap-10">
                     {leaderboardData.map((team, index) => {
                         const BASE_NW = 500000000; // 50 Cr
-                        // Make the chart responsive to the highest net worth, but at least 100 Cr so 50 Cr is ideally ~50%
-                        const maxChartRange = Math.max(1000000000, maxNetWorth * 1.05);
+                        // Make the chart responsive to the highest final score, but at least 100 Cr so 50 Cr is ideally ~50%
+                        const maxChartRange = Math.max(1000000000, maxFinalScore * 1.05);
 
-                        const percentage = Math.max(1, (team.netWorth / maxChartRange) * 100);
+                        const percentage = Math.max(1, (team.finalScore / maxChartRange) * 100);
 
-                        // Color progression based on Net Worth performance
-                        // Start at Yellow (45) for 50Cr. Go to Green (120) for gains. Go to Red (0) for losses.
+                        // Color progression based on Final Score performance
+                        // Start at Yellow (45) for baseline. Go to Green (120) for gains. Go to Red (0) for losses.
                         let hue = 50;
+                        // Use netWorth for color calculation (gains/losses from starting 50Cr)
                         if (team.netWorth > BASE_NW) {
                             const ratio = Math.min(1, (team.netWorth - BASE_NW) / 250000000); // 25Cr gain maxes out green
                             hue = 50 + (ratio * 70); // Up to 120 (Green)
@@ -227,10 +234,10 @@ export default function LeaderboardPage() {
                                     {/* Net Worth value right-aligned within the bar */}
                                     <div className="shrink-0 pr-3 md:pr-4 flex flex-col items-end justify-center h-full">
                                         <span className={`font-black text-sm md:text-lg text-[var(--color-text)] tracking-tight leading-none whitespace-nowrap`}>
-                                            NW: ₹{formatCurrency(team.netWorth)}
+                                            SCORE: ₹{formatCurrency(team.finalScore)}
                                         </span>
                                         <span className="text-[8px] md:text-[10px] font-bold text-[var(--color-text)] opacity-70 uppercase mt-0.5 whitespace-nowrap">
-                                            CASH: ₹{formatCurrency(team.remaining)} • AST: ₹{formatCurrency(team.propertyValue)}
+                                            NW: ₹{formatCurrency(team.netWorth)} • PLOTS: {team.plotsWon}
                                         </span>
                                     </div>
                                 </div>
