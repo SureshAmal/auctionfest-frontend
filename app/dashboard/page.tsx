@@ -1129,9 +1129,9 @@ export default function Dashboard() {
                       </p>
                       <p className="font-black text-lg">
                         ₹{" "}
-                        {Number(
-                          currentPlot.total_plot_price || 0,
-                        ).toLocaleString("en-IN")}
+                        {Number(currentPlot.base_price || 0).toLocaleString(
+                          "en-IN",
+                        )}
                       </p>
                     </div>
                     <div className="neo-border p-3 bg-[var(--color-surface)]">
