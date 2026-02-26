@@ -410,6 +410,14 @@ export default function Dashboard() {
             setRebidOffers(prev => prev.filter(o => o.id !== offer.id));
         });
 
+        // Handle being banned
+        socket.on("banned", (data: any) => {
+            alert(data.message || "Your team has been banned.");
+            socket.disconnect();
+            localStorage.clear();
+            window.location.href = "/";
+        });
+
         return () => {
             socket.off("connect", joinRoom);
             socket.off("auction_state_update");
@@ -425,6 +433,7 @@ export default function Dashboard() {
             socket.off("rebid_offer_sold");
             socket.off("round4_phase_update");
             socket.off("rebid_offer_cancelled");
+            socket.off("banned");
         };
     }, [socket, userTeam?.id]); // Only depend on ID, not the whole object, to prevent reconnects on budget updates
 
@@ -962,14 +971,14 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                <TrackingWindow 
-                    currentPlot={currentPlot} 
-                    status={auctionStatus} 
-                    plots={plots} 
-                    allTeams={allTeams} 
-                    userTeam={userTeam} 
-                    currentRound={currentRound} 
-                    rebidOffers={rebidOffers} 
+                <TrackingWindow
+                    currentPlot={currentPlot}
+                    status={auctionStatus}
+                    plots={plots}
+                    allTeams={allTeams}
+                    userTeam={userTeam}
+                    currentRound={currentRound}
+                    rebidOffers={rebidOffers}
                     rebidOffersSold={rebidOffersSold}
                     forceOpen={trackerOpen}
                     onClose={() => setTrackerOpen(false)}

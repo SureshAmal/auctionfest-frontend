@@ -100,6 +100,7 @@ export default function AdminPage() {
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+    const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
 
     // Countdown / Live Widget State
     const [sellCountdown, setSellCountdown] = useState(3);
@@ -399,6 +400,27 @@ export default function AdminPage() {
             setAdjustMessage("Question Pushed!");
         } catch {
             setAdjustMessage("Error pushing question");
+        }
+        setTimeout(() => setAdjustMessage(""), 3000);
+    };
+
+    /** Toggle a team's ban status */
+    const handleToggleBan = async (teamId: string) => {
+        try {
+            const res = await fetch(`/api/admin/teams/${teamId}/toggle-ban`, {
+                method: "POST"
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setTeams(prev => prev.map(t =>
+                    t.id === teamId ? { ...t, is_banned: data.is_banned } : t
+                ));
+                setAdjustMessage(data.is_banned ? "Team Banned!" : "Team Unbanned!");
+            } else {
+                setAdjustMessage("Failed to toggle ban");
+            }
+        } catch (e) {
+            setAdjustMessage("Network error on toggle ban");
         }
         setTimeout(() => setAdjustMessage(""), 3000);
     };
@@ -836,13 +858,37 @@ export default function AdminPage() {
                     </div>
                 </div>
 
-                {/* Mobile FAB */}
-                <button
-                    onClick={() => setIsSidebarOpen(true)}
-                    className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-[var(--color-primary)] text-[var(--color-bg)] rounded-full flex items-center justify-center border-4 border-[var(--color-border)] shadow-[4px_4px_0_var(--color-border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
-                >
-                    <Menu size={24} />
-                </button>
+                {/* Floating Admin FAB Menu */}
+                <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3 pointer-events-none">
+                    {isFabMenuOpen && (
+                        <div className="flex flex-col gap-3 mb-1 animate-in slide-in-from-bottom-5 duration-200 pointer-events-auto">
+                            <button
+                                onClick={() => { setIsImageModalOpen(true); setIsFabMenuOpen(false); }}
+                                className="flex items-center gap-3 group"
+                            >
+                                <span className="neo-border bg-[var(--color-surface)] text-[var(--color-text)] px-3 py-1 text-xs font-black uppercase shadow-[2px_2px_0_var(--color-border)] group-hover:scale-105 transition-transform">Show Map</span>
+                                <div className="w-12 h-12 bg-[var(--color-primary)] text-[var(--color-bg)] rounded-full flex items-center justify-center border-4 border-[var(--color-border)] shadow-[4px_4px_0_var(--color-border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all">
+                                    <MapPin size={24} />
+                                </div>
+                            </button>
+                            <button
+                                onClick={() => { setIsSidebarOpen(true); setIsFabMenuOpen(false); }}
+                                className="flex items-center gap-3 group"
+                            >
+                                <span className="neo-border bg-[var(--color-surface)] text-[var(--color-text)] px-3 py-1 text-xs font-black uppercase shadow-[2px_2px_0_var(--color-border)] group-hover:scale-105 transition-transform">Team Infos</span>
+                                <div className="w-12 h-12 bg-[var(--color-secondary)] text-[var(--color-bg)] rounded-full flex items-center justify-center border-4 border-[var(--color-border)] shadow-[4px_4px_0_var(--color-border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all">
+                                    <Users size={24} />
+                                </div>
+                            </button>
+                        </div>
+                    )}
+                    <button
+                        onClick={() => setIsFabMenuOpen(!isFabMenuOpen)}
+                        className={`w-14 h-14 ${isFabMenuOpen ? "bg-[var(--color-danger)] text-[var(--color-bg)]" : "bg-[var(--color-bg)] text-[var(--color-text)]"} rounded-full flex items-center justify-center border-4 border-[var(--color-border)] shadow-[4px_4px_0_var(--color-border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all pointer-events-auto`}
+                    >
+                        {isFabMenuOpen ? <X size={28} /> : <Rocket size={28} />}
+                    </button>
+                </div>
 
                 {
                     isSidebarOpen && (
@@ -857,48 +903,51 @@ export default function AdminPage() {
                                 </div>
 
                                 <div className="flex-1 overflow-hidden p-4">
-                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
-                                        {/* Left: Map (Takes up 2/3 of the space) */}
-                                        <div className="lg:col-span-2 h-full flex flex-col min-h-0">
-                                            <NeoCard className="p-0 overflow-hidden relative bg-[var(--color-bg)] flex-1 flex flex-col cursor-pointer hover:shadow-none translate-x-[2px] translate-y-[2px] transition-all hover:-translate-x-0 hover:-translate-y-0"
-                                                onClick={() => setIsImageModalOpen(true)}>
-                                                <h3 className="text-lg font-black uppercase m-3 flex items-center gap-2 shrink-0">
-                                                    <MapPin size={20} className="text-[var(--color-secondary)]" /> Current Plot Mode (Map)
-                                                </h3>
-                                                <div className="relative flex-1 bg-gray-100 border-t-2 border-[var(--color-border)] min-h-[300px]">
-                                                    <div className="absolute inset-0 pointer-events-none p-4 w-full h-full opacity-70">
-                                                        <CityMap
-                                                            currentPlotNumber={currentPlot?.number}
-                                                            plots={plots}
-                                                            allTeams={teams}
-                                                            currentRound={currentRound}
-                                                            onPlotClick={(id) => {
-                                                                const p = plots.find(p => p.number.toString() === id);
-                                                                if (p) setCurrentPlot(p);
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    <div className="absolute top-4 right-4">
-                                                        <NeoBadge variant="info" className="text-lg px-4 py-1">Plot #{currentPlot?.number || "-"}</NeoBadge>
-                                                    </div>
-                                                    <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                                                        <div className="bg-[var(--color-bg)] font-black text-lg uppercase px-4 py-2 border-4 border-[var(--color-border)]">Click Fullscreen</div>
-                                                    </div>
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
+                                        {/* Left: Team Management */}
+                                        <div className="h-full flex flex-col gap-4 min-h-0">
+                                            <div className="flex items-center gap-3 neo-border px-4 py-3 bg-[var(--color-surface)] shrink-0">
+                                                <ShieldAlert size={28} className="text-[var(--color-danger)]" />
+                                                <div className="flex-1">
+                                                    <span className="font-black text-3xl leading-none block">{teams.length}</span>
+                                                    <span className="font-bold uppercase text-xs block opacity-70 tracking-wider">Total Teams</span>
                                                 </div>
-                                            </NeoCard>
+                                            </div>
+
+                                            <div className="flex-1 overflow-y-auto neo-border bg-[var(--color-surface)] p-2 min-h-0">
+                                                <div className="space-y-2">
+                                                    {teams.map((t) => (
+                                                        <div key={t.id} className={`flex items-center justify-between gap-2 p-2 border-2 ${t.is_banned ? "border-[var(--color-danger)] bg-[var(--color-danger)]/5" : "border-[var(--color-border)] bg-[var(--color-bg)]"} transition-all`}>
+                                                            <div className="flex items-center gap-2 min-w-0">
+                                                                <span className={`w-2 h-2 shrink-0 ${t.is_banned ? "bg-[var(--color-danger)]" : "bg-[var(--color-success)]"} rounded-full shadow-[1px_1px_0_var(--neo-shadow-color)]`} />
+                                                                <span className={`font-black text-[10px] uppercase truncate ${t.is_banned ? "line-through opacity-50" : ""}`}>{t.name}</span>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => handleToggleBan(t.id)}
+                                                                className={`px-2 py-0.5 font-black text-[9px] uppercase border-2 transition-all ${t.is_banned
+                                                                    ? "bg-[var(--color-success)] text-[var(--color-bg)] border-[var(--color-success)] hover:shadow-none translate-x-[1px] translate-y-[1px]"
+                                                                    : "bg-[var(--color-danger)] text-[var(--color-bg)] border-[var(--color-danger)] shadow-[2px_2px_0_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px]"
+                                                                    }`}
+                                                            >
+                                                                {t.is_banned ? "Unban" : "Ban"}
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         </div>
 
-                                        {/* Right: Connected Users (Takes up 1/3 of the space) */}
-                                        <div className="lg:col-span-1 h-full flex flex-col gap-4 min-h-0">
+                                        {/* Right: Connected Users */}
+                                        <div className="h-full flex flex-col gap-4 min-h-0">
                                             <div className="flex items-center gap-3 neo-border px-4 py-3 bg-[var(--color-surface)] shrink-0">
                                                 <Users size={28} className="text-[var(--color-secondary)]" />
                                                 <div className="flex-1">
                                                     <span className="font-black text-3xl leading-none block">{connectedCount}</span>
-                                                    <span className="font-bold uppercase text-xs block opacity-70 tracking-wider">Connected Users</span>
+                                                    <span className="font-bold uppercase text-xs block opacity-70 tracking-wider">Connected Teams</span>
                                                 </div>
                                             </div>
 
-                                            <div className="flex-1 overflow-y-auto neo-border bg-[var(--color-surface)] p-2">
+                                            <div className="flex-1 overflow-y-auto neo-border bg-[var(--color-surface)] p-2 min-h-0">
                                                 <div className="space-y-2">
                                                     {connectedTeams.length > 0 ? connectedTeams.map((name, i) => (
                                                         <div key={i} className="flex items-center gap-3 bg-[var(--color-bg)] p-3 border-2 border-[var(--color-border)] font-black text-sm uppercase">
