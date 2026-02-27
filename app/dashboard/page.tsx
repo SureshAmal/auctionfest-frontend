@@ -299,16 +299,21 @@ export default function Dashboard() {
       setAuctionStatus(data.status);
       if (data.current_round) setCurrentRound(data.current_round);
 
-      if (data.current_plot_number) {
+      if (data.current_plot === null) {
+        setPlots((prev) =>
+          prev.map((p) =>
+            p.status === "active"
+              ? { ...p, status: data.status === "reversed" ? "pending" : "sold" }
+              : p
+          )
+        );
+        setCurrentPlot(null);
+      } else if (data.current_plot_number) {
         setPlots((prev) =>
           prev.map((p) => {
-            // The plot we landed on becomes active
             if (p.number === data.current_plot_number) {
               return { ...p, status: "active" };
             }
-
-            // If we just moved forward normally, the old active plot becomes sold.
-            // If we reversed, the old active plot becomes pending.
             if (p.status === "active") {
               return {
                 ...p,
@@ -316,13 +321,13 @@ export default function Dashboard() {
               };
             }
             return p;
-          }),
+          })
         );
-
         if (data.current_plot) {
           setCurrentPlot(data.current_plot);
         }
       }
+
       if (data.current_question !== undefined) {
         setActiveQuestion(data.current_question);
       }
@@ -334,10 +339,10 @@ export default function Dashboard() {
       setCurrentPlot((prev: any) =>
         prev
           ? {
-              ...prev,
-              current_bid: data.amount,
-              winner_team_id: data.team_id,
-            }
+            ...prev,
+            current_bid: data.amount,
+            winner_team_id: data.team_id,
+          }
           : null,
       );
 
@@ -399,11 +404,11 @@ export default function Dashboard() {
         setUserTeam((prev: any) =>
           prev
             ? {
-                ...prev,
-                spent: data.spent,
-                budget: data.budget,
-                plots_won: data.plots_won,
-              }
+              ...prev,
+              spent: data.spent,
+              budget: data.budget,
+              plots_won: data.plots_won,
+            }
             : null,
         );
       }
@@ -413,11 +418,11 @@ export default function Dashboard() {
         prev.map((t) =>
           String(t.id) === dataId
             ? {
-                ...t,
-                spent: data.spent,
-                budget: data.budget,
-                plots_won: data.plots_won,
-              }
+              ...t,
+              spent: data.spent,
+              budget: data.budget,
+              plots_won: data.plots_won,
+            }
             : t,
         ),
       );
@@ -556,11 +561,10 @@ export default function Dashboard() {
     >
       {sellAlert && (
         <div
-          className={`fixed top-4 left-1/2 -translate-x-1/2 z-[9999] px-6 py-4 font-bold border-4 shadow-[4px_4px_0_rgba(0,0,0,1)] flex items-center gap-3 animate-in slide-in-from-top fade-in duration-300 ${
-            sellAlert.isError
+          className={`fixed top-4 left-1/2 -translate-x-1/2 z-[9999] px-6 py-4 font-bold border-4 shadow-[4px_4px_0_rgba(0,0,0,1)] flex items-center gap-3 animate-in slide-in-from-top fade-in duration-300 ${sellAlert.isError
               ? "bg-[var(--color-danger)] text-white border-black"
               : "bg-[var(--color-success)] text-black border-black"
-          }`}
+            }`}
         >
           <AlertTriangle size={24} />
           <span>{sellAlert.message}</span>
@@ -888,10 +892,10 @@ export default function Dashboard() {
                       p.winner_team_id === userTeam.id &&
                       p.status?.toLowerCase() === "sold",
                   ).length === 0 && (
-                    <p className="text-sm font-bold opacity-50 p-4 text-center">
-                      You don't own any plots to sell.
-                    </p>
-                  )}
+                      <p className="text-sm font-bold opacity-50 p-4 text-center">
+                        You don't own any plots to sell.
+                      </p>
+                    )}
                   {plots
                     .filter(
                       (p) =>
@@ -1022,8 +1026,8 @@ export default function Dashboard() {
                                     const rawVal = markupInput[plot.number];
                                     const price =
                                       rawVal &&
-                                      rawVal.trim() !== "" &&
-                                      !isNaN(parseFloat(rawVal))
+                                        rawVal.trim() !== "" &&
+                                        !isNaN(parseFloat(rawVal))
                                         ? parseFloat(rawVal)
                                         : null;
 
@@ -1241,59 +1245,59 @@ export default function Dashboard() {
                 currentRound === 3 ||
                 currentRound === 5 ||
                 currentRound === 6) && (
-                <NeoCard className="shrink-0 flex-1">
-                  <h3 className="text-sm font-black uppercase mb-2 flex items-center gap-2">
-                    🏆 Sold Plots
-                  </h3>
-                  <div className="max-h-[300px] overflow-y-auto">
-                    {plots.filter(
-                      (p) =>
-                        p.status?.toLowerCase() === "sold" && p.winner_team_id,
-                    ).length > 0 ? (
-                      <table className="w-full text-xs text-[var(--color-text)]">
-                        <thead>
-                          <tr className="border-b-2 border-[var(--color-border)] text-left uppercase">
-                            <th className="py-1 px-1">Plot</th>
-                            <th className="py-1 px-1">Team</th>
-                            <th className="py-1 px-1 text-right">Price</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {plots
-                            .filter(
-                              (p) =>
-                                p.status?.toLowerCase() === "sold" &&
-                                p.winner_team_id,
-                            )
-                            .map((p) => (
-                              <tr
-                                key={p.number}
-                                className="border-b border-[var(--color-border)] opacity-70"
-                              >
-                                <td className="py-1 px-1 font-bold">
-                                  #{p.number}
-                                </td>
-                                <td className="py-1 px-1">
-                                  {getTeamName(p.winner_team_id)}
-                                </td>
-                                <td className="py-1 px-1 text-right font-mono">
-                                  ₹
-                                  {Number(p.current_bid).toLocaleString(
-                                    "en-IN",
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <p className="text-[var(--color-text)] opacity-40 text-xs italic">
-                        No plots sold yet.
-                      </p>
-                    )}
-                  </div>
-                </NeoCard>
-              )}
+                  <NeoCard className="shrink-0 flex-1">
+                    <h3 className="text-sm font-black uppercase mb-2 flex items-center gap-2">
+                      🏆 Sold Plots
+                    </h3>
+                    <div className="max-h-[300px] overflow-y-auto">
+                      {plots.filter(
+                        (p) =>
+                          p.status?.toLowerCase() === "sold" && p.winner_team_id,
+                      ).length > 0 ? (
+                        <table className="w-full text-xs text-[var(--color-text)]">
+                          <thead>
+                            <tr className="border-b-2 border-[var(--color-border)] text-left uppercase">
+                              <th className="py-1 px-1">Plot</th>
+                              <th className="py-1 px-1">Team</th>
+                              <th className="py-1 px-1 text-right">Price</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {plots
+                              .filter(
+                                (p) =>
+                                  p.status?.toLowerCase() === "sold" &&
+                                  p.winner_team_id,
+                              )
+                              .map((p) => (
+                                <tr
+                                  key={p.number}
+                                  className="border-b border-[var(--color-border)] opacity-70"
+                                >
+                                  <td className="py-1 px-1 font-bold">
+                                    #{p.number}
+                                  </td>
+                                  <td className="py-1 px-1">
+                                    {getTeamName(p.winner_team_id)}
+                                  </td>
+                                  <td className="py-1 px-1 text-right font-mono">
+                                    ₹
+                                    {Number(p.current_bid).toLocaleString(
+                                      "en-IN",
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <p className="text-[var(--color-text)] opacity-40 text-xs italic">
+                          No plots sold yet.
+                        </p>
+                      )}
+                    </div>
+                  </NeoCard>
+                )}
             </div>
 
             {/* RIGHT: Live Feed */}
@@ -1325,10 +1329,10 @@ export default function Dashboard() {
                   {recentBids.filter(
                     (b) => b.plot_number === currentPlot?.number,
                   ).length === 0 && (
-                    <p className="text-[var(--color-text)] opacity-50 italic text-sm border-2 border-dashed border-[var(--color-border)] p-4 text-center">
-                      No bids yet...
-                    </p>
-                  )}
+                      <p className="text-[var(--color-text)] opacity-50 italic text-sm border-2 border-dashed border-[var(--color-border)] p-4 text-center">
+                        No bids yet...
+                      </p>
+                    )}
                 </div>
               </NeoCard>
             </div>

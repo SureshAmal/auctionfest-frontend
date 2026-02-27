@@ -100,7 +100,9 @@ export default function LiveAuctionPage() {
       setAuctionStatus(data.status);
       setCurrentRound(data.current_round);
       setCurrentQuestion(data.current_question || null);
-      if (data.current_plot) {
+      if (data.current_plot === null) {
+        setCurrentPlot(null);
+      } else if (data.current_plot) {
         setCurrentPlot(data.current_plot);
       }
     });
@@ -230,8 +232,8 @@ export default function LiveAuctionPage() {
   const currentPrice =
     currentPlot && currentRound === 4
       ? Number(currentPlot.current_bid) ||
-        Number(currentPlot.total_plot_price) ||
-        0
+      Number(currentPlot.total_plot_price) ||
+      0
       : Number(currentPlot?.total_plot_price) || 0;
 
   // Track bid count for current plot
@@ -250,11 +252,10 @@ export default function LiveAuctionPage() {
           </h1>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <div
-              className={`px-1.5 py-0.5 text-[9px] font-black uppercase border border-[var(--color-border)] flex items-center gap-1 ${
-                isConnected
+              className={`px-1.5 py-0.5 text-[9px] font-black uppercase border border-[var(--color-border)] flex items-center gap-1 ${isConnected
                   ? "bg-[var(--color-success)] text-[var(--color-bg)]"
                   : "bg-[var(--color-danger)] text-[var(--color-bg)] animate-pulse"
-              }`}
+                }`}
             >
               {isConnected ? "LIVE" : "OFF"}
             </div>
@@ -262,13 +263,12 @@ export default function LiveAuctionPage() {
               R{currentRound}
             </div>
             <div
-              className={`px-1.5 py-0.5 text-[9px] font-black uppercase border border-[var(--color-border)] ${
-                auctionStatus === "running" || auctionStatus === "selling"
+              className={`px-1.5 py-0.5 text-[9px] font-black uppercase border border-[var(--color-border)] ${auctionStatus === "running" || auctionStatus === "selling"
                   ? "bg-green-600 text-[var(--color-bg)]"
                   : auctionStatus === "completed"
                     ? "bg-[var(--color-primary)] text-[var(--color-bg)]"
                     : "bg-[var(--color-bg)] text-[var(--color-text)]"
-              }`}
+                }`}
             >
               {auctionStatus === "completed" ? "COMPLETED" : auctionStatus}
             </div>
@@ -386,21 +386,19 @@ export default function LiveAuctionPage() {
                 )}
                 {Number(currentPlot.round_adjustment) !== 0 && (
                   <div
-                    className={`border-2 border-[var(--color-border)] p-2 ${
-                      currentPlot.round_adjustment > 0
+                    className={`border-2 border-[var(--color-border)] p-2 ${currentPlot.round_adjustment > 0
                         ? "bg-[var(--color-success)]/20"
                         : "bg-[var(--color-danger)]/20"
-                    }`}
+                      }`}
                   >
                     <p className="text-[10px] font-bold uppercase opacity-50">
                       Adj
                     </p>
                     <p
-                      className={`font-black text-sm ${
-                        currentPlot.round_adjustment > 0
+                      className={`font-black text-sm ${currentPlot.round_adjustment > 0
                           ? "text-[var(--color-success)]"
                           : "text-[var(--color-danger)]"
-                      }`}
+                        }`}
                     >
                       {currentPlot.round_adjustment > 0 ? "+" : ""}₹{" "}
                       {currentPlot.round_adjustment?.toLocaleString()}
@@ -433,27 +431,25 @@ export default function LiveAuctionPage() {
                   {leaderboardData.slice(0, 10).map((team, index) => (
                     <div
                       key={team.id}
-                      className={`flex items-center justify-between p-1.5 border-2 ${
-                        index === 0
+                      className={`flex items-center justify-between p-1.5 border-2 ${index === 0
                           ? "border-yellow-400 bg-yellow-400/20"
                           : index === 1
                             ? "border-gray-400 bg-gray-400/20"
                             : index === 2
                               ? "border-amber-600 bg-amber-600/20"
                               : "border-[var(--color-border)] bg-[var(--color-surface)]"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-1.5">
                         <span
-                          className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-black ${
-                            index === 0
+                          className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-black ${index === 0
                               ? "bg-yellow-500 text-black"
                               : index === 1
                                 ? "bg-gray-400 text-black"
                                 : index === 2
                                   ? "bg-amber-700 text-white"
                                   : "bg-[var(--color-bg)]"
-                          }`}
+                            }`}
                         >
                           {index + 1}
                         </span>

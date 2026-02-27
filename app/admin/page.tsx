@@ -224,7 +224,18 @@ export default function AdminPage() {
     const handleStateUpdate = (data: any) => {
       setAuctionState(data);
       if (data.current_round) setCurrentRound(data.current_round);
-      if (data.current_plot_number) {
+
+      if (data.current_plot === null) {
+        // End of round reached. Clear active plot.
+        setPlots((prev) =>
+          prev.map((p) =>
+            p.status === "active"
+              ? { ...p, status: data.status === "reversed" ? "pending" : "sold" }
+              : p
+          )
+        );
+        setCurrentPlot(null);
+      } else if (data.current_plot_number) {
         setPlots((prev) =>
           prev.map((p) => ({
             ...p,
@@ -290,11 +301,11 @@ export default function AdminPage() {
         prev.map((t) =>
           t.id === data.team_id
             ? {
-                ...t,
-                spent: data.spent,
-                budget: data.budget,
-                plots_won: data.plots_won,
-              }
+              ...t,
+              spent: data.spent,
+              budget: data.budget,
+              plots_won: data.plots_won,
+            }
             : t,
         ),
       );
@@ -1066,16 +1077,25 @@ export default function AdminPage() {
                       ),
                     },
                     {
+                      id: "base_price",
+                      header: "Base Price",
+                      cell: ({ row }) => {
+                        const basePrice = Number(row.original.base_price || 0);
+                        const area = Number(row.original.actual_area || 0);
+                        const totalBase = basePrice * area > 0 ? basePrice * area : Number(row.original.total_plot_price || 0);
+                        return (
+                          <span className="font-mono text-xs opacity-70">
+                            ₹{totalBase.toLocaleString("en-IN")}
+                          </span>
+                        );
+                      }
+                    },
+                    {
                       accessorKey: "total_plot_price",
-                      header: "Price",
+                      header: "Curr. Price",
                       cell: ({ row }) => (
-                        <span className="font-mono text-xs">
-                          ₹
-                          {Number(
-                            row.original.current_bid ||
-                              row.original.total_plot_price ||
-                              0,
-                          ).toLocaleString("en-IN")}
+                        <span className="font-mono text-xs font-bold">
+                          ₹{Number(row.original.current_bid || row.original.total_plot_price || 0).toLocaleString("en-IN")}
                         </span>
                       ),
                     },
@@ -1126,16 +1146,31 @@ export default function AdminPage() {
                       ),
                     },
                     {
-                      accessorKey: "current_bid",
-                      header: "Bid",
-                      cell: ({ row }) => (
-                        <span className="font-mono font-bold text-xs">
-                          {row.original.current_bid
-                            ? `₹${Number(row.original.current_bid).toLocaleString("en-IN")}`
-                            : "-"}
-                        </span>
-                      ),
-                    },
+                      id: "actions",
+                      header: "Actions",
+                      cell: ({ row }) => {
+                        if (row.original.status === "sold") {
+                          return (
+                            <NeoButton
+                              variant="secondary"
+                              className="text-[10px] px-2 py-1"
+                              onClick={async () => {
+                                try {
+                                  await fetch(`/api/admin/force-resell/${row.original.number}`, {
+                                    method: "POST"
+                                  });
+                                } catch (e) {
+                                  console.error(e);
+                                }
+                              }}
+                            >
+                              Resell
+                            </NeoButton>
+                          );
+                        }
+                        return null;
+                      }
+                    }
                   ];
 
                   return (
@@ -1251,11 +1286,10 @@ export default function AdminPage() {
                             </div>
                             <button
                               onClick={() => handleToggleBan(t.id)}
-                              className={`px-2 py-0.5 font-black text-[9px] uppercase border-2 transition-all ${
-                                t.is_banned
-                                  ? "bg-[var(--color-success)] text-[var(--color-bg)] border-[var(--color-success)] hover:shadow-none translate-x-[1px] translate-y-[1px]"
-                                  : "bg-[var(--color-danger)] text-[var(--color-bg)] border-[var(--color-danger)] shadow-[2px_2px_0_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px]"
-                              }`}
+                              className={`px-2 py-0.5 font-black text-[9px] uppercase border-2 transition-all ${t.is_banned
+                                ? "bg-[var(--color-success)] text-[var(--color-bg)] border-[var(--color-success)] hover:shadow-none translate-x-[1px] translate-y-[1px]"
+                                : "bg-[var(--color-danger)] text-[var(--color-bg)] border-[var(--color-danger)] shadow-[2px_2px_0_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px]"
+                                }`}
                             >
                               {t.is_banned ? "Unban" : "Ban"}
                             </button>
