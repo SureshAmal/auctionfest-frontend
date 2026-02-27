@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2,
@@ -9,6 +9,7 @@ import {
   CheckCircle,
   IndianRupee,
   Clock,
+  Trophy,
 } from "lucide-react";
 import { useSocket } from "../context/socket-context";
 import NeoCard from "./neo/NeoCard";
@@ -52,6 +53,20 @@ export default function BidCard({
   const [serverSellerDisabled, setServerSellerDisabled] = useState(false);
   const [isBidActive, setIsBidActive] = useState(false);
 
+  // Sold summary state — shows briefly when a plot is sold
+  const [soldInfo, setSoldInfo] = useState<{
+    plotNumber: number;
+    teamName: string;
+    price: number;
+  } | null>(null);
+
+  const prevPlotRef = useRef<any>(null);
+
+  // Track previous plot to reset state (removed buggy early-return overlay trigger)
+  useEffect(() => {
+    prevPlotRef.current = currentPlot ? { ...currentPlot } : null;
+  }, [currentPlot?.number]);
+
   // Derived state: disable bidding if they are the original seller in Round 4
   const isSellerDisabled =
     serverSellerDisabled ||
@@ -74,6 +89,7 @@ export default function BidCard({
     if (currentPlot) {
       setBidAmount("");
       setIsBidActive(false);
+      setIsSubmitting(false);
       setError("");
       setSuccessMsg("");
     }
@@ -127,6 +143,7 @@ export default function BidCard({
     socket.emit("place_bid", {
       team_id: userTeam.id,
       amount: amount,
+      plot_number: currentPlot.number,
     });
   };
 
@@ -152,14 +169,26 @@ export default function BidCard({
       }
     };
 
+    const handlePlotSold = (data: any) => {
+      const winnerTeam = allTeams.find((t) => t.id === data.teamId);
+      setSoldInfo({
+        plotNumber: data.plotNumber,
+        teamName: winnerTeam?.name || "Unknown",
+        price: data.price,
+      });
+      setTimeout(() => setSoldInfo(null), 3000);
+    };
+
     socket.on("exception", handleError);
     socket.on("bid_error", handleError);
     socket.on("new_bid", handleNewBid);
+    socket.on("plot_sold_summary", handlePlotSold);
 
     return () => {
       socket.off("exception", handleError);
       socket.off("bid_error", handleError);
       socket.off("new_bid", handleNewBid);
+      socket.off("plot_sold_summary", handlePlotSold);
     };
   }, [socket, userTeam]);
 
@@ -176,6 +205,43 @@ export default function BidCard({
         <p className="font-bold text-sm uppercase text-[var(--color-text)] opacity-40">
           Waiting for next plot...
         </p>
+      </NeoCard>
+    );
+  }
+
+  // Show sold summary overlay when a plot just sold
+  if (soldInfo) {
+    return (
+      <NeoCard className={`bg-[var(--color-bg)] flex flex-col ${className}`}>
+        <div className="flex flex-col items-center justify-center py-6 text-center space-y-4">
+          <div className="w-16 h-16 bg-[var(--color-success)] text-[var(--color-bg)] rounded-full flex items-center justify-center border-4 border-[var(--color-border)] shadow-[4px_4px_0_var(--neo-shadow-color)] animate-bounce">
+            <Trophy size={32} />
+          </div>
+          <div>
+            <h3 className="text-2xl font-black uppercase tracking-wider mb-1">
+              SOLD!
+            </h3>
+            <p className="text-xs font-bold uppercase opacity-60">
+              Plot #{soldInfo.plotNumber}
+            </p>
+          </div>
+          <div className="neo-border p-4 bg-[var(--color-surface)] w-full">
+            <p className="text-xs font-bold uppercase opacity-60 mb-1">
+              Winner
+            </p>
+            <p className="text-xl font-black uppercase text-[var(--color-primary)]">
+              {soldInfo.teamName}
+            </p>
+          </div>
+          <div className="neo-border p-4 bg-[var(--color-surface)] w-full">
+            <p className="text-xs font-bold uppercase opacity-60 mb-1">
+              Final Price
+            </p>
+            <p className="text-2xl font-mono font-black">
+              ₹ {soldInfo.price.toLocaleString("en-IN")}
+            </p>
+          </div>
+        </div>
       </NeoCard>
     );
   }
@@ -324,21 +390,21 @@ export default function BidCard({
             {/* Projected Balance on Win */}
             {(bidAmountNum > 0 ||
               currentPlot?.winner_team_id === userTeam.id) && (
-              <div className="flex justify-between items-center text-xs font-black uppercase neo-border p-2 bg-[var(--color-success)] text-[var(--color-text)] shadow-[3px_3px_0_var(--neo-shadow-color)] mb-3">
-                <span>If {bidAmountNum > 0 ? "Bid" : "Current Bid"} Won</span>
-                <span className="font-mono text-sm leading-none bg-[var(--color-bg)] px-2 py-1 border-2 border-[var(--color-border)]">
-                  ₹{" "}
-                  {Math.max(
-                    0,
-                    Number(userTeam.budget) -
+                <div className="flex justify-between items-center text-xs font-black uppercase neo-border p-2 bg-[var(--color-success)] text-[var(--color-text)] shadow-[3px_3px_0_var(--neo-shadow-color)] mb-3">
+                  <span>If {bidAmountNum > 0 ? "Bid" : "Current Bid"} Won</span>
+                  <span className="font-mono text-sm leading-none bg-[var(--color-bg)] px-2 py-1 border-2 border-[var(--color-border)]">
+                    ₹{" "}
+                    {Math.max(
+                      0,
+                      Number(userTeam.budget) -
                       Number(userTeam.spent || 0) -
                       (bidAmountNum > 0
                         ? bidAmountNum
                         : Number(currentPlot.current_bid)),
-                  ).toLocaleString("en-IN")}
-                </span>
-              </div>
-            )}
+                    ).toLocaleString("en-IN")}
+                  </span>
+                </div>
+              )}
 
             {/* Bid Input with +/- */}
             <div className="relative flex items-center gap-4">

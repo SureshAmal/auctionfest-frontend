@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useSocket } from "../../context/socket-context";
 import NeoLayout from "../../components/neo/NeoLayout";
 import NeoCard from "../../components/neo/NeoCard";
-import { Trophy, TrendingUp, Anchor } from "lucide-react";
+import { Trophy, TrendingUp, Anchor, Info, X } from "lucide-react";
 
 interface Team {
     id: string;
@@ -27,6 +27,7 @@ export default function LeaderboardPage() {
     const [plots, setPlots] = useState<Plot[]>([]);
     const { socket, isConnected } = useSocket();
     const [auctionStatus, setAuctionStatus] = useState("not_started");
+    const [isInfoOpen, setIsInfoOpen] = useState(false);
 
     useEffect(() => {
         // Fetch Initial Data via Next.js proxy (relative paths)
@@ -146,6 +147,9 @@ export default function LeaderboardPage() {
                 <div>
                     <h1 className="text-3xl md:text-5xl font-black uppercase text-[var(--color-primary)] flex items-center gap-3 tracking-tighter">
                         <Trophy size={40} className="text-[var(--color-primary)]" /> LIVE LEADERBOARD
+                        <button onClick={() => setIsInfoOpen(true)} className="ml-2 hover:opacity-70 transition-opacity" title="Scoring Rules">
+                            <Info size={28} className="text-[var(--color-text)] opacity-50" />
+                        </button>
                     </h1>
                     <div className="flex items-center gap-3 mt-2">
                         <div className={`px-2 py-0.5 text-[10px] font-black uppercase border-2 border-[var(--color-border)] flex items-center gap-1.5 ${isConnected ? "bg-[var(--color-success)] text-[var(--color-bg)]" : "bg-[var(--color-danger)] text-[var(--color-bg)] animate-pulse"
@@ -247,6 +251,59 @@ export default function LeaderboardPage() {
                 </div>
             </div>
 
+            {/* Scoring Info Modal */}
+            {isInfoOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsInfoOpen(false)} />
+                    <div className="relative w-full max-w-lg bg-[var(--color-bg)] border-4 border-[var(--color-border)] shadow-[12px_12px_0_rgba(0,0,0,1)] flex flex-col pointer-events-auto overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center p-4 border-b-4 border-[var(--color-border)] bg-[var(--color-surface)] shrink-0">
+                            <h2 className="font-black text-2xl uppercase tracking-wider flex items-center gap-2">
+                                <Info size={24} className="text-[var(--color-primary)]" /> Scoring Rules
+                            </h2>
+                            <button onClick={() => setIsInfoOpen(false)} className="p-1 hover:bg-[var(--color-bg)] transition-colors rounded-sm">
+                                <X size={28} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-6 overflow-y-auto max-h-[70vh]">
+                            <div className="space-y-2">
+                                <h3 className="font-black text-lg uppercase text-[var(--color-secondary)]">1. Property Value</h3>
+                                <p className="text-sm font-bold opacity-80 leading-relaxed">
+                                    The total current valuation of all plots owned by the team. This is calculated as the sum of the <span className="text-[var(--color-text)] bg-[var(--color-surface)] px-1 rounded">Current Bid / Base Price</span> plus any <span className="text-[var(--color-text)] bg-[var(--color-surface)] px-1 rounded">Policy Card Adjustments</span> for each plot.
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <h3 className="font-black text-lg uppercase text-[var(--color-success)]">2. Remaining Cash</h3>
+                                <p className="text-sm font-bold opacity-80 leading-relaxed">
+                                    The unspent portion of the team's initial budget.
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <h3 className="font-black text-lg uppercase text-[var(--color-info)]">3. Net Worth</h3>
+                                <p className="text-sm font-bold opacity-80 leading-relaxed">
+                                    The sum of the team's <span className="text-[var(--color-secondary)]">Property Value</span> and <span className="text-[var(--color-success)]">Remaining Cash</span>. This tracks the pure financial standing of the team.
+                                </p>
+                            </div>
+
+                            <div className="space-y-2 pt-4 border-t-2 border-dashed border-[var(--color-border)]/30">
+                                <h3 className="font-black text-xl uppercase text-[var(--color-primary)] flex items-center gap-2">
+                                    <Trophy size={20} /> Final Score
+                                </h3>
+                                <p className="text-sm font-bold opacity-80 leading-relaxed">
+                                    The metric used to rank the leaderboard. It is calculated as:
+                                </p>
+                                <div className="bg-[var(--color-surface)] neo-border p-3 font-mono text-xs md:text-sm font-black text-center mt-2">
+                                    Net Worth + (Plots Owned × 1 Crore Bonus)
+                                </div>
+                                <p className="text-xs font-bold opacity-60 italic mt-2 text-center">
+                                    * Every plot won grants a flat 1 Crore points bonus to the final score!
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </NeoLayout>
     );
 }

@@ -27,6 +27,11 @@ import {
   TrendingDown,
   AlertTriangle,
   Rocket,
+  WifiOff,
+  Download,
+  Trash2,
+  RotateCw,
+  CheckCircle,
 } from "lucide-react";
 import NeoCard from "@/components/neo/NeoCard";
 import NeoButton from "@/components/neo/NeoButton";
@@ -126,6 +131,8 @@ export default function AdminPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
+  const [isConnectedModalOpen, setIsConnectedModalOpen] = useState(false);
+  const [isSaveLoadModalOpen, setIsSaveLoadModalOpen] = useState(false);
 
   // Countdown / Live Widget State
   const [sellCountdown, setSellCountdown] = useState(3);
@@ -202,7 +209,7 @@ export default function AdminPage() {
       setSellCountdown(3);
       interval = setInterval(() => {
         setSellCountdown((prev) => (prev > 1 ? prev - 1 : 1));
-      }, 2000);
+      }, 1000);
     }
     return () => clearInterval(interval);
   }, [auctionState?.status]);
@@ -667,37 +674,48 @@ export default function AdminPage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-1 min-h-0 overflow-hidden">
           {/* Left: Controls + Leaderboard + Connected */}
           <div className="lg:col-span-1 flex flex-col gap-3 min-h-0 overflow-y-auto">
-            {/* Connected Teams Card */}
+            {/* Connected / Disconnected Teams Card */}
             <NeoCard className="shrink-0 bg-[var(--color-bg)] mb-3">
-              <h2 className="text-sm font-black uppercase mb-2 flex items-center gap-2">
-                <Users size={16} /> Connected Teams (
-                {
-                  connectedTeams.filter(
-                    (t) => t !== "Admin" && t !== "Leaderboard",
-                  ).length
-                }
-                )
-              </h2>
-              <div className="flex flex-wrap gap-1 max-h-[120px] overflow-y-auto mb-2 pr-1 custom-scrollbar">
-                {connectedTeams.filter(
-                  (t) => t !== "Admin" && t !== "Leaderboard",
-                ).length > 0 ? (
-                  connectedTeams
-                    .filter((t) => t !== "Admin" && t !== "Leaderboard")
-                    .map((team, idx) => (
-                      <span
-                        key={idx}
-                        className="text-[10px] font-bold bg-[var(--color-surface)] neo-border px-2 py-0.5 tracking-tight flex-shrink-0"
-                      >
-                        {team}
-                      </span>
-                    ))
-                ) : (
-                  <span className="text-[10px] opacity-50 font-bold uppercase p-1">
-                    No online teams
-                  </span>
-                )}
-              </div>
+              {(() => {
+                const onlineTeams = connectedTeams.filter(t => t !== "Admin" && t !== "Leaderboard");
+                const offlineTeams = teams.filter(t => !connectedTeams.includes(t.name));
+                return (
+                  <div className="flex flex-col gap-2">
+                    <div>
+                      <h2 className="text-[11px] font-black uppercase mb-1 flex items-center gap-1.5 opacity-80 text-[var(--color-success)]">
+                        <Users size={12} /> Online ({onlineTeams.length})
+                      </h2>
+                      <div className="flex flex-wrap gap-1 overflow-y-auto pr-1 custom-scrollbar">
+                        {onlineTeams.length > 0 ? (
+                          onlineTeams.map((team, idx) => (
+                            <span key={idx} className="text-[9px] font-bold bg-[var(--color-surface)] border border-[var(--color-border)] px-1.5 py-0.5 tracking-tight flex-shrink-0">
+                              {team}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-[9px] opacity-50 font-bold uppercase py-0.5">None</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="border-t-2 border-dashed border-[var(--color-border)]/20 pt-2">
+                      <h2 className="text-[11px] font-black uppercase mb-1 flex items-center gap-1.5 opacity-80 text-[var(--color-danger)]">
+                        <Users size={12} /> Offline ({offlineTeams.length})
+                      </h2>
+                      <div className="flex flex-wrap gap-1 overflow-y-auto pr-1 custom-scrollbar">
+                        {offlineTeams.length > 0 ? (
+                          offlineTeams.map((team, idx) => (
+                            <span key={idx} className="text-[9px] font-bold bg-[var(--color-surface)] border border-[var(--color-border)] opacity-60 px-1.5 py-0.5 tracking-tight flex-shrink-0">
+                              {team.name}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-[9px] opacity-50 font-bold uppercase py-0.5">None</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </NeoCard>
 
             {/* Admin Controls Card */}
@@ -1219,6 +1237,34 @@ export default function AdminPage() {
                   <Users size={24} />
                 </div>
               </button>
+              <button
+                onClick={() => {
+                  setIsConnectedModalOpen(true);
+                  setIsFabMenuOpen(false);
+                }}
+                className="flex items-center gap-3 group"
+              >
+                <span className="neo-border bg-[var(--color-surface)] text-[var(--color-text)] px-3 py-1 text-xs font-black uppercase shadow-[2px_2px_0_var(--color-border)] group-hover:scale-105 transition-transform">
+                  Connections
+                </span>
+                <div className="w-12 h-12 bg-[var(--color-success)] text-[var(--color-bg)] rounded-full flex items-center justify-center border-4 border-[var(--color-border)] shadow-[4px_4px_0_var(--color-border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all">
+                  <WifiOff size={24} />
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  setIsSaveLoadModalOpen(true);
+                  setIsFabMenuOpen(false);
+                }}
+                className="flex items-center gap-3 group"
+              >
+                <span className="neo-border bg-[var(--color-surface)] text-[var(--color-text)] px-3 py-1 text-xs font-black uppercase shadow-[2px_2px_0_var(--color-border)] group-hover:scale-105 transition-transform">
+                  Save / Load
+                </span>
+                <div className="w-12 h-12 bg-[var(--color-warning)] text-[var(--color-bg)] rounded-full flex items-center justify-center border-4 border-[var(--color-border)] shadow-[4px_4px_0_var(--color-border)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all">
+                  <Save size={24} />
+                </div>
+              </button>
             </div>
           )}
           <button
@@ -1316,26 +1362,56 @@ export default function AdminPage() {
                       </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto neo-border bg-[var(--color-surface)] p-2 min-h-0">
-                      <div className="space-y-2">
-                        {connectedTeams.length > 0 ? (
-                          connectedTeams.map((name, i) => (
-                            <div
-                              key={i}
-                              className="flex items-center gap-3 bg-[var(--color-bg)] p-3 border-2 border-[var(--color-border)] font-black text-sm uppercase"
-                            >
-                              <span className="w-3 h-3 bg-[var(--color-success)] border-2 border-[var(--color-border)] shadow-[2px_2px_0_var(--color-border)]" />
-                              <span className="truncate">{name}</span>
+                    <div className="flex-1 overflow-y-auto neo-border bg-[var(--color-surface)] p-2 min-h-0 flex flex-col gap-4">
+                      {/* Connected List */}
+                      <div>
+                        <h4 className="font-black text-[10px] uppercase opacity-50 mb-2 px-1">Online ({connectedTeams.length})</h4>
+                        <div className="space-y-2">
+                          {connectedTeams.length > 0 ? (
+                            connectedTeams.map((name, i) => (
+                              <div
+                                key={i}
+                                className="flex items-center gap-3 bg-[var(--color-bg)] p-3 border-2 border-[var(--color-border)] font-black text-sm uppercase"
+                              >
+                                <span className="w-3 h-3 bg-[var(--color-success)] border-2 border-[var(--color-border)] shadow-[2px_2px_0_var(--color-border)]" />
+                                <span className="truncate">{name}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="flex flex-col items-center justify-center p-3 text-[var(--color-text)] opacity-40 border-2 border-dashed border-[var(--color-border)] text-center">
+                              <p className="font-bold uppercase text-[10px]">No active connections</p>
                             </div>
-                          ))
-                        ) : (
-                          <div className="flex flex-col items-center justify-center h-40 text-[var(--color-text)] opacity-40 border-4 border-dashed border-[var(--color-border)] p-4 text-center">
-                            <Users size={32} className="mb-2" />
-                            <p className="font-bold uppercase text-sm">
-                              No active connections
-                            </p>
-                          </div>
-                        )}
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Disconnected List */}
+                      <div>
+                        {(() => {
+                          const disconnected = teams.filter(t => !connectedTeams.includes(t.name));
+                          return (
+                            <>
+                              <h4 className="font-black text-[10px] uppercase opacity-50 mb-2 px-1 mt-2">Offline ({disconnected.length})</h4>
+                              <div className="space-y-2 opacity-60">
+                                {disconnected.length > 0 ? (
+                                  disconnected.map((team, i) => (
+                                    <div
+                                      key={i}
+                                      className="flex items-center gap-3 bg-[var(--color-surface)] p-3 border-2 border-[var(--color-border)] font-black text-sm uppercase"
+                                    >
+                                      <span className="w-3 h-3 bg-[var(--color-danger)] border-2 border-[var(--color-border)] shadow-[2px_2px_0_var(--color-border)]" />
+                                      <span className="truncate">{team.name}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center p-3 text-[var(--color-text)] opacity-40 border-2 border-dashed border-[var(--color-border)] text-center">
+                                    <p className="font-bold uppercase text-[10px]">All teams connected</p>
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -1384,6 +1460,374 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+      <SaveLoadModal
+        isOpen={isSaveLoadModalOpen}
+        onClose={() => setIsSaveLoadModalOpen(false)}
+      />
+      <ConnectedTeamsModal
+        isOpen={isConnectedModalOpen}
+        onClose={() => setIsConnectedModalOpen(false)}
+        teams={teams}
+        connectedTeams={connectedTeams}
+      />
     </NeoLayout>
+  );
+}
+
+function ConnectedTeamsModal({
+  isOpen,
+  onClose,
+  teams,
+  connectedTeams,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  teams: any[];
+  connectedTeams: string[];
+}) {
+  if (!isOpen) return null;
+
+  const handleDisconnect = async (teamId: string, teamName: string) => {
+    if (!confirm(`Disconnect team "${teamName}"? They can reconnect freely.`)) return;
+    try {
+      const res = await fetch(`/api/admin/teams/${teamId}/disconnect`, { method: "POST" });
+      const data = await res.json();
+      if (data.status === "not_connected") {
+        alert(`${teamName} was not connected.`);
+      }
+    } catch (err) {
+      console.error("Disconnect failed:", err);
+      alert("Failed to disconnect team.");
+    }
+  };
+
+  const onlineTeams = teams.filter((t) => connectedTeams.includes(t.name));
+  const offlineTeams = teams.filter((t) => !connectedTeams.includes(t.name));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-[var(--color-bg)] border-4 border-[var(--color-border)] shadow-[12px_12px_0_rgba(0,0,0,1)] flex flex-col pointer-events-auto overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="flex justify-between items-center p-4 border-b-4 border-[var(--color-border)] bg-[var(--color-surface)] shrink-0">
+          <h2 className="font-black text-xl uppercase tracking-wider flex items-center gap-2">
+            <Users size={20} /> Manage Connections
+          </h2>
+          <button onClick={onClose} className="p-1 hover:bg-[var(--color-bg)] transition-colors rounded-sm">
+            <X size={24} />
+          </button>
+        </div>
+        <div className="p-4 space-y-4 overflow-y-auto max-h-[70vh]">
+          {/* Online Teams */}
+          <div>
+            <h3 className="text-xs font-black uppercase mb-2 text-[var(--color-success)] flex items-center gap-1.5">
+              <span className="w-2 h-2 bg-[var(--color-success)] rounded-full" /> Online ({onlineTeams.length})
+            </h3>
+            <div className="space-y-1.5">
+              {onlineTeams.length > 0 ? (
+                onlineTeams.map((team) => (
+                  <div
+                    key={team.id}
+                    className="flex items-center justify-between gap-2 p-2 border-2 border-[var(--color-border)] bg-[var(--color-surface)]"
+                  >
+                    <span className="text-xs font-black uppercase truncate">{team.name}</span>
+                    <button
+                      onClick={() => handleDisconnect(team.id, team.name)}
+                      className="shrink-0 px-2 py-0.5 text-[9px] font-black uppercase bg-[var(--color-danger)] text-[var(--color-bg)] border-2 border-[var(--color-danger)] shadow-[2px_2px_0_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all flex items-center gap-1"
+                    >
+                      <WifiOff size={10} /> Kick
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p className="text-[10px] font-bold uppercase opacity-50 p-2">No teams connected</p>
+              )}
+            </div>
+          </div>
+
+          {/* Offline Teams */}
+          <div className="border-t-2 border-dashed border-[var(--color-border)]/30 pt-3">
+            <h3 className="text-xs font-black uppercase mb-2 opacity-50 flex items-center gap-1.5">
+              <span className="w-2 h-2 bg-[var(--color-danger)] rounded-full" /> Offline ({offlineTeams.length})
+            </h3>
+            <div className="flex flex-wrap gap-1">
+              {offlineTeams.map((team) => (
+                <span key={team.id} className="text-[9px] font-bold px-1.5 py-0.5 bg-[var(--color-surface)] border border-[var(--color-border)] opacity-50">
+                  {team.name}
+                </span>
+              ))}
+              {offlineTeams.length === 0 && (
+                <p className="text-[10px] font-bold uppercase opacity-50 p-2">All teams connected!</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SaveLoadModal({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const [snapshots, setSnapshots] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [saveLabel, setSaveLabel] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Custom feedback state
+  const [feedback, setFeedback] = useState<{
+    msg: string;
+    type: "success" | "error" | "info" | null;
+  }>({ msg: "", type: null });
+
+  // Custom confirm state
+  const [confirmReq, setConfirmReq] = useState<{
+    msg: string;
+    action: () => void;
+  } | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchSnapshots();
+      setFeedback({ msg: "", type: null });
+      setConfirmReq(null);
+      setSearchQuery("");
+    }
+  }, [isOpen]);
+
+  const showFeedback = (msg: string, type: "success" | "error" | "info") => {
+    setFeedback({ msg, type });
+    if (type !== "error") {
+      setTimeout(() => setFeedback({ msg: "", type: null }), 3000);
+    }
+  };
+
+  const fetchSnapshots = async () => {
+    try {
+      const res = await fetch("/api/admin/saved-states");
+      if (res.ok) {
+        const data = await res.json();
+        setSnapshots(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch snapshots:", err);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!saveLabel.trim()) {
+      showFeedback("Please enter a label for the snapshot.", "error");
+      return;
+    }
+    try {
+      setIsLoading(true);
+      const res = await fetch("/api/admin/save-state", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: saveLabel }),
+      });
+      if (res.ok) {
+        setSaveLabel("");
+        await fetchSnapshots();
+        showFeedback("Game state saved successfully!", "success");
+      } else {
+        showFeedback("Failed to save state.", "error");
+      }
+    } catch (err) {
+      console.error("Save error:", err);
+      showFeedback("Error saving state.", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const executeRestore = async (id: number) => {
+    setConfirmReq(null);
+    try {
+      setIsLoading(true);
+      const res = await fetch(`/api/admin/restore-state/${id}`, { method: "POST" });
+      if (res.ok) {
+        showFeedback("State restored successfully! Refreshing...", "success");
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        const err = await res.json();
+        showFeedback(`Restore failed: ${err.detail || "Unknown error"}`, "error");
+      }
+    } catch (err) {
+      console.error("Restore error:", err);
+      showFeedback("Error restoring state.", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRestoreClick = (id: number, label: string) => {
+    setConfirmReq({
+      msg: `Are you sure you want to RESTORE snapshot "${label}"? This will overwrite current game state!`,
+      action: () => executeRestore(id),
+    });
+  };
+
+  const executeDelete = async (id: number) => {
+    setConfirmReq(null);
+    try {
+      setIsLoading(true);
+      const res = await fetch(`/api/admin/saved-states/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        await fetchSnapshots();
+        showFeedback("Snapshot deleted.", "success");
+      } else {
+        showFeedback("Failed to delete snapshot.", "error");
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      showFeedback("Error deleting state.", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteClick = (id: number) => {
+    setConfirmReq({
+      msg: "Are you sure you want to delete this snapshot?",
+      action: () => executeDelete(id),
+    });
+  };
+
+  const filteredSnapshots = snapshots.filter(snap => {
+    const term = searchQuery.toLowerCase();
+    const dateStr = new Date(snap.created_at).toLocaleString().toLowerCase();
+    return snap.label.toLowerCase().includes(term) || dateStr.includes(term);
+  });
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-2xl bg-[var(--color-bg)] border-4 border-[var(--color-border)] shadow-[12px_12px_0_rgba(0,0,0,1)] flex flex-col pointer-events-auto overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="flex justify-between items-center p-4 border-b-4 border-[var(--color-border)] bg-[var(--color-surface)] shrink-0">
+          <h2 className="font-black text-xl uppercase tracking-wider flex items-center gap-2">
+            <Save size={20} /> Save & Load State
+          </h2>
+          <button onClick={onClose} className="p-1 hover:bg-[var(--color-bg)] transition-colors rounded-sm">
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6 overflow-y-auto max-h-[70vh] relative">
+
+          {/* Custom Confirm Overlay */}
+          {confirmReq && (
+            <div className="absolute inset-0 z-10 bg-[var(--color-bg)]/90 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200">
+              <div className="neo-border bg-[var(--color-surface)] p-6 max-w-md w-full text-center shadow-[8px_8px_0_var(--neo-shadow-color)]">
+                <AlertTriangle size={48} className="mx-auto text-[var(--color-danger)] mb-4" />
+                <h3 className="font-black uppercase text-lg mb-2 text-[var(--color-danger)]">Confirm Action</h3>
+                <p className="font-bold text-sm mb-6 opacity-80">{confirmReq.msg}</p>
+                <div className="flex gap-4">
+                  <NeoButton variant="secondary" className="flex-1" onClick={() => setConfirmReq(null)}>
+                    Cancel
+                  </NeoButton>
+                  <NeoButton variant="danger" className="flex-1" onClick={confirmReq.action}>
+                    Yes, Proceed
+                  </NeoButton>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Custom Feedback Banner */}
+          {feedback.msg && (
+            <div className={`p-4 font-bold border-l-8 flex items-center gap-2 ${feedback.type === "success" ? "bg-[var(--color-success)]/20 border-[var(--color-success)] text-[var(--color-success)]" :
+              feedback.type === "error" ? "bg-[var(--color-danger)]/20 border-[var(--color-danger)] text-[var(--color-danger)]" :
+                "bg-[var(--color-primary)]/20 border-[var(--color-primary)] text-[var(--color-primary)]"
+              } animate-in slide-in-from-top-4 duration-300`}>
+              {feedback.type === "error" ? <AlertCircle size={20} /> : <CheckCircle size={20} />}
+              {feedback.msg}
+            </div>
+          )}
+
+          {/* Save Section */}
+          <div className="neo-border p-4 bg-[var(--color-surface)]">
+            <h3 className="text-sm font-black uppercase mb-3 flex items-center gap-2">
+              <Download size={16} /> Create Snapshot
+            </h3>
+            <div className="flex gap-2">
+              <NeoInput
+                placeholder="Required: Snapshot label (e.g. 'Before Round 4')"
+                value={saveLabel}
+                onChange={(e) => setSaveLabel(e.target.value)}
+                className="flex-1"
+                disabled={isLoading}
+              />
+              <NeoButton onClick={handleSave} disabled={isLoading || !saveLabel.trim()} variant="primary">
+                Save
+              </NeoButton>
+            </div>
+          </div>
+
+          {/* Load Section */}
+          <div className="flex flex-col h-full">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+              <h3 className="text-sm font-black uppercase flex items-center gap-2">
+                <RotateCw size={16} /> Restore Snapshot
+              </h3>
+              <div className="relative w-full sm:w-64">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-50" />
+                <NeoInput
+                  placeholder="Search snapshots..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 h-9 text-sm"
+                />
+              </div>
+            </div>
+            <div className="space-y-3">
+              {snapshots.length === 0 ? (
+                <p className="text-sm font-bold opacity-50 uppercase p-4 text-center neo-border border-dashed">
+                  No saved snapshots found.
+                </p>
+              ) : filteredSnapshots.length === 0 ? (
+                <p className="text-sm font-bold opacity-50 uppercase p-4 text-center neo-border border-dashed">
+                  No snapshots match your search.
+                </p>
+              ) : (
+                filteredSnapshots.map((snap) => (
+                  <div key={snap.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 neo-border bg-[var(--color-surface)]">
+                    <div>
+                      <h4 className="font-black text-lg">{snap.label}</h4>
+                      <p className="text-xs font-bold opacity-60 uppercase">
+                        {new Date(snap.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <NeoButton
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleRestoreClick(snap.id, snap.label)}
+                        disabled={isLoading}
+                      >
+                        Restore
+                      </NeoButton>
+                      <button
+                        onClick={() => handleDeleteClick(snap.id)}
+                        disabled={isLoading}
+                        className="w-10 h-10 flex items-center justify-center bg-[var(--color-danger)] text-white border-2 border-[var(--color-danger)] shadow-[2px_2px_0_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all disabled:opacity-50"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

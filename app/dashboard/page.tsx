@@ -562,8 +562,8 @@ export default function Dashboard() {
       {sellAlert && (
         <div
           className={`fixed top-4 left-1/2 -translate-x-1/2 z-[9999] px-6 py-4 font-bold border-4 shadow-[4px_4px_0_rgba(0,0,0,1)] flex items-center gap-3 animate-in slide-in-from-top fade-in duration-300 ${sellAlert.isError
-              ? "bg-[var(--color-danger)] text-white border-black"
-              : "bg-[var(--color-success)] text-black border-black"
+            ? "bg-[var(--color-danger)] text-white border-black"
+            : "bg-[var(--color-success)] text-black border-black"
             }`}
         >
           <AlertTriangle size={24} />
@@ -714,36 +714,54 @@ export default function Dashboard() {
                     };
                   })
                   .sort((a, b) => b.finalScore - a.finalScore)
-                  .map((team, index) => (
-                    <div
-                      key={team.id}
-                      className={`flex flex-col md:flex-row items-center gap-4 justify-between border-4 border-[var(--color-border)] p-4 transition-transform ${index === 0 ? "bg-[var(--color-success)] text-[var(--color-bg)] shadow-[6px_6px_0_var(--neo-shadow-color)] scale-[1.02] -rotate-1 z-10" : "bg-[var(--color-surface)] shadow-[4px_4px_0_var(--neo-shadow-color)]"}`}
-                    >
-                      <div className="flex items-center gap-4 w-full md:w-auto">
-                        <div
-                          className={`shrink-0 w-12 h-12 flex items-center justify-center font-black text-2xl border-4 ${index === 0 ? "border-[var(--color-bg)] bg-[var(--color-bg)] text-[var(--color-success)]" : "border-[var(--color-border)] bg-[var(--color-bg)]"}`}
-                        >
-                          #{index + 1}
+                  .map((team, index) => {
+                    let rankStyle = "";
+                    let rankLabel = `#${index + 1}`;
+
+                    if (index === 0) {
+                      rankStyle = "bg-[#FFD700] text-black shadow-[8px_8px_0_var(--neo-shadow-color)] scale-[1.03] -rotate-1 z-30 border-black";
+                      rankLabel = "🥇 1st";
+                    } else if (index === 1) {
+                      rankStyle = "bg-[#C0C0C0] text-black shadow-[6px_6px_0_var(--neo-shadow-color)] scale-[1.02] z-20 border-black";
+                      rankLabel = "🥈 2nd";
+                    } else if (index === 2) {
+                      rankStyle = "bg-[#CD7F32] text-white shadow-[4px_4px_0_var(--neo-shadow-color)] scale-[1.01] z-10 border-black";
+                      rankLabel = "🥉 3rd";
+                    } else {
+                      rankStyle = "bg-[var(--color-surface)] shadow-[4px_4px_0_var(--neo-shadow-color)] border-[var(--color-border)] opacity-90";
+                    }
+
+                    return (
+                      <div
+                        key={team.id}
+                        className={`flex flex-col md:flex-row items-center gap-4 justify-between border-4 p-4 transition-transform ${rankStyle}`}
+                      >
+                        <div className="flex items-center gap-4 w-full md:w-auto">
+                          <div
+                            className={`shrink-0 min-w-[3rem] h-12 px-2 flex items-center justify-center font-black text-xl md:text-2xl border-4 ${index < 3 ? "border-current bg-black/10" : "border-[var(--color-border)] bg-[var(--color-bg)]"}`}
+                          >
+                            {rankLabel}
+                          </div>
+                          <div className="flex flex-col flex-1">
+                            <span className="font-black text-2xl uppercase whitespace-nowrap overflow-hidden text-ellipsis drop-shadow-sm">
+                              {team.name}
+                            </span>
+                            <span className="text-xs uppercase font-bold opacity-80 mt-1">
+                              {team.plotsWon} Plots Owned
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex flex-col flex-1">
-                          <span className="font-black text-2xl uppercase whitespace-nowrap overflow-hidden text-ellipsis">
-                            {team.name}
+                        <div className="flex flex-col items-center md:items-end w-full md:w-auto opacity-90 p-2 border-2 border-current/20 bg-black/5">
+                          <span className="text-xs font-bold uppercase opacity-80">
+                            Final Score
                           </span>
-                          <span className="text-xs uppercase font-bold opacity-80 mt-1">
-                            {team.plotsWon} Plots Owned
+                          <span className="font-mono font-black text-2xl md:text-3xl drop-shadow-sm">
+                            ₹ {team.finalScore.toLocaleString("en-IN")}
                           </span>
                         </div>
                       </div>
-                      <div className="flex flex-col items-center md:items-end w-full md:w-auto opacity-90 p-2 border-2 border-[var(--color-border)]/10">
-                        <span className="text-xs font-bold uppercase opacity-80">
-                          Final Score
-                        </span>
-                        <span className="font-mono font-black text-2xl md:text-3xl">
-                          ₹ {team.finalScore.toLocaleString("en-IN")}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
             </NeoCard>
           </div>
